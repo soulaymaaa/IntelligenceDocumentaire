@@ -1,0 +1,8 @@
+﻿src/modules/documents/document.controller.ts(57,54): error TS2345: Argument of type '{ limit: number; page: number; status?: string | undefined; search?: string | undefined; archived?: boolean | undefined; ownerId: string; }' is not assignable to parameter of type 'ListDocumentsParams'.
+  Types of property 'status' are incompatible.
+    Type 'string | undefined' is not assignable to type 'DocumentStatus | undefined'.
+      Type 'string' is not assignable to type 'DocumentStatus | undefined'.
+src/modules/documents/document.service.ts(42,10): error TS2352: Conversion of type 'FlattenMaps<IDocument> & Required<{ _id: ObjectId; }> & { __v: number; }' to type 'IDocument' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  The types of 'collection.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/modules/embeddings/chunk.model.ts(54,16): error TS2790: The operand of a 'delete' operator must be optional.
