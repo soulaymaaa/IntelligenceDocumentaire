@@ -12,6 +12,7 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/documents',  icon: FileText,        label: 'Documents' },
   { href: '/search',     icon: Search,          label: 'Semantic Search' },
+  { href: '/settings',   icon: Settings,        label: 'Settings' },
 ];
 
 export const Sidebar = () => {

@@ -10,6 +10,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/documents': 'Documents',
   '/search':    'Semantic Search',
+  '/settings':  'Settings',
 };
 
 export const TopBar = () => {

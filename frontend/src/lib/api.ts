@@ -89,6 +89,10 @@ export const authApi = {
     await api.post('/auth/reset-password', data);
   },
 
+  changePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    await api.post('/auth/change-password', data);
+  },
+
   logout: async () => {
     localStorage.removeItem('auth_token');
     await api.post('/auth/logout');
