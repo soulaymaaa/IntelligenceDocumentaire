@@ -91,8 +91,8 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-10">
-            <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Welcome back</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg font-medium">Sign in to your account to continue</p>
+          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Welcome back</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg font-medium">Enter your password, then validate the email code to finish signing in</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -115,9 +115,16 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               icon={<Lock className="w-4.5 h-4.5" />}
+              allowPasswordToggle
               required
               autoComplete="current-password"
             />
+
+            <div className="flex justify-end -mt-2">
+              <Link href="/forgot-password" className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:text-brand-700 transition-colors">
+                Forgot password?
+              </Link>
+            </div>
 
             {error && (
               <div className="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm font-bold">
@@ -131,7 +138,7 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" isLoading={isLoading} className="w-full justify-center h-12 text-base">
-              Sign in <ArrowRight className="w-5 h-5 ml-1" />
+              Continue <ArrowRight className="w-5 h-5 ml-1" />
             </Button>
           </form>
 

@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import type {
   User, Document, DashboardStats, PaginationMeta,
-  SearchResult, RagAnswer, ApiResponse
+  SearchResult, RagAnswer, ApiResponse, SummaryPayload, Conversation, RegisterResponse, ResendVerificationResponse, LoginChallengeResponse, ResendLoginCodeResponse, ForgotPasswordResponse
 } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL
@@ -47,7 +47,7 @@ const extractData = <T>(res: { data: ApiResponse<T> }): T => res.data.data;
 
 export const authApi = {
   register: async (data: { name: string; email: string; password: string }) => {
-    const res = await api.post<ApiResponse<{ user: User }>>('/auth/register', data);
+    const res = await api.post<ApiResponse<RegisterResponse>>('/auth/register', data);
     return extractData(res);
   },
 
@@ -58,15 +58,35 @@ export const authApi = {
     return result;
   },
 
-  resendVerification: async (email: string) => {
-    await api.post('/auth/resend-verification', { email });
-  },
-
-  login: async (data: { email: string; password: string }) => {
-    const res = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/login', data);
+  verifyLogin: async (data: { email: string; code: string }) => {
+    const res = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/verify-login', data);
     const result = extractData(res);
     if (result.token) localStorage.setItem('auth_token', result.token);
     return result;
+  },
+
+  resendVerification: async (email: string) => {
+    const res = await api.post<ApiResponse<ResendVerificationResponse>>('/auth/resend-verification', { email });
+    return extractData(res);
+  },
+
+  login: async (data: { email: string; password: string }) => {
+    const res = await api.post<ApiResponse<LoginChallengeResponse>>('/auth/login', data);
+    return extractData(res);
+  },
+
+  resendLoginCode: async (email: string) => {
+    const res = await api.post<ApiResponse<ResendLoginCodeResponse>>('/auth/resend-login-code', { email });
+    return extractData(res);
+  },
+
+  forgotPassword: async (email: string) => {
+    const res = await api.post<ApiResponse<ForgotPasswordResponse>>('/auth/forgot-password', { email });
+    return extractData(res);
+  },
+
+  resetPassword: async (data: { email: string; code: string; newPassword: string }) => {
+    await api.post('/auth/reset-password', data);
   },
 
   logout: async () => {
@@ -133,6 +153,11 @@ export const documentsApi = {
     return extractData(res).document;
   },
 
+  restore: async (id: string): Promise<Document> => {
+    const res = await api.patch<ApiResponse<{ document: Document }>>(`/documents/${id}/restore`);
+    return extractData(res).document;
+  },
+
   runOcr: async (id: string): Promise<void> => {
     await api.post(`/documents/${id}/run-ocr`);
   },
@@ -156,8 +181,11 @@ export const searchApi = {
 // ── AI ────────────────────────────────────────────────────────────────────────
 
 export const aiApi = {
-  generateSummary: async (id: string): Promise<string> => {
-    const res = await api.post<ApiResponse<{ summary: string }>>(`/ai/documents/${id}/summary`);
+  generateSummary: async (
+    id: string,
+    mode: 'short' | 'detailed' | 'key_points' | 'all' = 'all'
+  ): Promise<SummaryPayload> => {
+    const res = await api.post<ApiResponse<{ summary: SummaryPayload }>>(`/ai/documents/${id}/summary`, { mode });
     return extractData(res).summary;
   },
 
@@ -170,6 +198,38 @@ export const aiApi = {
 
   askGlobal: async (question: string, topK = 5): Promise<RagAnswer> => {
     const res = await api.post<ApiResponse<RagAnswer>>('/ai/ask-global', { question, topK });
+    return extractData(res);
+  },
+};
+
+export const conversationsApi = {
+  list: async (params?: { scope?: 'global' | 'document'; documentId?: string }): Promise<Conversation[]> => {
+    const res = await api.get<ApiResponse<{ conversations: Conversation[] }>>('/conversations', { params });
+    return extractData(res).conversations;
+  },
+
+  create: async (data?: {
+    title?: string;
+    scope?: 'global' | 'document';
+    documentId?: string;
+  }): Promise<Conversation> => {
+    const res = await api.post<ApiResponse<{ conversation: Conversation }>>('/conversations', data || {});
+    return extractData(res).conversation;
+  },
+
+  get: async (id: string): Promise<Conversation> => {
+    const res = await api.get<ApiResponse<{ conversation: Conversation }>>(`/conversations/${id}`);
+    return extractData(res).conversation;
+  },
+
+  sendMessage: async (
+    id: string,
+    payload: { question: string; topK?: number; documentId?: string }
+  ): Promise<{ conversation: Conversation; answer: RagAnswer }> => {
+    const res = await api.post<ApiResponse<{ conversation: Conversation; answer: RagAnswer }>>(
+      `/conversations/${id}/messages`,
+      payload
+    );
     return extractData(res);
   },
 };

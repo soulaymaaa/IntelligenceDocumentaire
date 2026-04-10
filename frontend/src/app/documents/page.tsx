@@ -35,8 +35,9 @@ export default function DocumentsPage() {
     queryKey: ['documents', { page, status: statusFilter, search }],
     queryFn: () => documentsApi.list({
       page, limit: 20,
-      status: statusFilter || undefined,
+      status: statusFilter && statusFilter !== 'archived' ? statusFilter : undefined,
       search: search || undefined,
+      archived: statusFilter === 'archived' ? true : undefined,
     }),
     refetchInterval: 10000, // poll for status updates
   });
@@ -52,6 +53,11 @@ export default function DocumentsPage() {
 
   const archiveMutation = useMutation({
     mutationFn: (id: string) => documentsApi.archive(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => documentsApi.restore(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   });
 
@@ -139,6 +145,7 @@ export default function DocumentsPage() {
                 document={doc}
                 onDelete={(id) => setDeleteTarget(id)}
                 onArchive={(id) => archiveMutation.mutate(id)}
+                onRestore={(id) => restoreMutation.mutate(id)}
               />
             ))}
           </div>

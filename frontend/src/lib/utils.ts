@@ -39,3 +39,22 @@ export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return 'An unexpected error occurred';
 }
+
+export function getDocumentPreviewUrl(filename?: string, pageNumber?: number): string | null {
+  if (!filename) return null;
+  const base = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/uploads/${filename}`;
+  return pageNumber ? `${base}#page=${pageNumber}` : base;
+}
+
+export function highlightText(text: string, terms: string[]): string {
+  if (!terms.length) return text;
+
+  const escapedTerms = terms
+    .filter(Boolean)
+    .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+  if (!escapedTerms.length) return text;
+
+  const regex = new RegExp(`(${escapedTerms.join('|')})`, 'gi');
+  return text.replace(regex, '<mark class="rounded bg-amber-200/80 px-1 text-slate-900">$1</mark>');
+}

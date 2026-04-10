@@ -9,8 +9,16 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{
+    devLoginCode?: string;
+    emailPreviewUrl?: string;
+    deliveredToInbox: boolean;
+  }>;
+  register: (name: string, email: string, password: string) => Promise<{
+    devVerificationCode?: string;
+    emailPreviewUrl?: string;
+    deliveredToInbox: boolean;
+  }>;
   verify: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -41,15 +49,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [refreshUser]);
 
+  const storeFallback = (key: string, value: Record<string, string | boolean | undefined>) => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem(key, JSON.stringify(value));
+  };
+
   const login = async (email: string, password: string) => {
-    const { user } = await authApi.login({ email, password });
-    setUser(user);
-    router.push('/dashboard');
+    const result = await authApi.login({ email, password });
+
+    storeFallback('verify-login-fallback', {
+      email,
+      devCode: result.devLoginCode,
+      previewUrl: result.emailPreviewUrl,
+      delivery: result.deliveredToInbox ? '' : 'fallback',
+    });
+
+    const params = new URLSearchParams({ email });
+    if (result.devLoginCode) params.set('devCode', result.devLoginCode);
+    if (result.emailPreviewUrl) params.set('previewUrl', result.emailPreviewUrl);
+    if (!result.deliveredToInbox) params.set('delivery', 'fallback');
+
+    router.push(`/verify-login?${params.toString()}`);
+    return result;
   };
 
   const register = async (name: string, email: string, password: string) => {
-    await authApi.register({ name, email, password });
-    router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+    const result = await authApi.register({ name, email, password });
+
+    storeFallback('verify-email-fallback', {
+      email,
+      devCode: result.devVerificationCode,
+      previewUrl: result.emailPreviewUrl,
+      delivery: result.deliveredToInbox ? '' : 'fallback',
+    });
+
+    const params = new URLSearchParams({ email });
+    if (result.devVerificationCode) params.set('devCode', result.devVerificationCode);
+    if (result.emailPreviewUrl) params.set('previewUrl', result.emailPreviewUrl);
+    if (!result.deliveredToInbox) params.set('delivery', 'fallback');
+
+    router.push(`/verify-email?${params.toString()}`);
+    return result;
   };
 
   const verify = async (email: string, code: string) => {

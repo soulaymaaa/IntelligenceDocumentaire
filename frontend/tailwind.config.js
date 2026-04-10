@@ -10,17 +10,17 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          50:  '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50:  '#ecfeff',
+          100: '#cffafe',
+          200: '#a5f3fc',
+          300: '#67e8f9',
+          400: '#22d3ee',
+          500: '#06b6d4',
+          600: '#0891b2',
+          700: '#0e7490',
+          800: '#155e75',
+          900: '#164e63',
+          950: '#083344',
         },
         surface: {
           DEFAULT: 'rgb(var(--bg-base) / <alpha-value>)',
@@ -40,7 +40,7 @@ module.exports = {
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'brand-gradient': 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #2563eb 100%)',
+        'brand-gradient': 'linear-gradient(135deg, #0f766e 0%, #0891b2 55%, #22c55e 100%)',
         'card-gradient': 'linear-gradient(145deg, rgba(var(--brand-600-rgb), 0.05) 0%, rgba(var(--brand-400-rgb), 0.01) 100%)',
       },
       boxShadow: {
@@ -48,8 +48,8 @@ module.exports = {
         'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
         'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        'glow': '0 0 20px rgba(99, 102, 241, 0.15)',
-        'glow-lg': '0 0 40px rgba(99, 102, 241, 0.1)',
+        'glow': '0 0 20px rgba(8, 145, 178, 0.18)',
+        'glow-lg': '0 0 40px rgba(8, 145, 178, 0.12)',
         'card': 'var(--shadow-card)',
         'card-hover': 'var(--shadow-card-hover)',
       },

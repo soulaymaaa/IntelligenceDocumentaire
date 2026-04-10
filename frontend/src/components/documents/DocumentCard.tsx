@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, Image, Calendar, HardDrive, MoreVertical, Trash2, Archive } from 'lucide-react';
+import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText } from 'lucide-react';
 import { cn, formatBytes, formatDateShort, truncate } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/Badge';
 import type { Document } from '@/types';
@@ -10,6 +10,7 @@ interface DocumentCardProps {
   document: Document;
   onDelete?: (id: string) => void;
   onArchive?: (id: string) => void;
+  onRestore?: (id: string) => void;
 }
 
 const mimeIcon = (mime: string) => {
@@ -17,7 +18,7 @@ const mimeIcon = (mime: string) => {
   return <Image className="w-5 h-5 text-blue-400" />;
 };
 
-export const DocumentCard = ({ document: doc, onDelete, onArchive }: DocumentCardProps) => {
+export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore }: DocumentCardProps) => {
   return (
     <div className={cn(
       'group bg-white rounded-2xl p-5 shadow-sm border border-slate-200',
@@ -48,6 +49,15 @@ export const DocumentCard = ({ document: doc, onDelete, onArchive }: DocumentCar
                   title="Archive"
                 >
                   <Archive className="w-4 h-4" />
+                </button>
+              )}
+              {doc.archived && onRestore && (
+                <button
+                  onClick={() => onRestore(doc._id)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100"
+                  title="Restore"
+                >
+                  <Undo2 className="w-4 h-4" />
                 </button>
               )}
               {onDelete && (
@@ -83,6 +93,19 @@ export const DocumentCard = ({ document: doc, onDelete, onArchive }: DocumentCar
               </p>
             </div>
           )}
+
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              {doc.archived ? 'Archived' : 'Active'}
+            </span>
+            <Link
+              href={`/documents/${doc._id}`}
+              className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 transition-colors hover:text-brand-700"
+            >
+              <MessageSquareText className="w-3.5 h-3.5" />
+              Open workspace
+            </Link>
+          </div>
         </div>
       </div>
     </div>

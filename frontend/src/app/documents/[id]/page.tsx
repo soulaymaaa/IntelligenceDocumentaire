@@ -1,56 +1,98 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, FileText, RefreshCw, Trash2, Archive,
-  Scan, Zap, MessageSquare, AlignLeft, BookOpen,
-  Copy, Check, ExternalLink, AlertTriangle, Brain, Calendar,
+  AlignLeft,
+  Archive,
+  ArrowLeft,
+  BookOpen,
+  ExternalLink,
+  FileSearch,
+  FileText,
+  Highlighter,
+  RefreshCw,
+  Scan,
+  Sparkles,
+  Trash2,
+  Undo2,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card } from '@/components/ui/Card';
+import { ConversationPanel } from '@/components/ai/ConversationPanel';
 import { Button } from '@/components/ui/Button';
-import { StatusBadge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
-import { Spinner, InlineLoader } from '@/components/ui/Spinner';
-import { Textarea } from '@/components/ui/Input';
-import { documentsApi, aiApi } from '@/lib/api';
-import { formatBytes, formatDate, getErrorMessage } from '@/lib/utils';
-import type { RagAnswer, Document } from '@/types';
+import { StatusBadge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { documentsApi, aiApi, conversationsApi } from '@/lib/api';
+import { formatBytes, formatDate, getDocumentPreviewUrl, getErrorMessage, highlightText } from '@/lib/utils';
+import type { Conversation, Document, SummaryPayload } from '@/types';
 
-type Tab = 'overview' | 'text' | 'summary' | 'ask';
+type DetailTab = 'overview' | 'highlights' | 'summary' | 'chat';
+type SummaryView = 'short' | 'detailed' | 'key_points';
 
 export default function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
 
-  const [tab, setTab] = useState<Tab>('overview');
-  const [showDelete, setShowDelete] = useState(false);
+  const [tab, setTab] = useState<DetailTab>('overview');
+  const [summaryView, setSummaryView] = useState<SummaryView>('short');
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState<RagAnswer | null>(null);
-  const [askError, setAskError] = useState('');
-  const [isAsking, setIsAsking] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
-  const { data: doc, isLoading, error } = useQuery<Document, Error>({
+  const { data: doc, isLoading } = useQuery<Document>({
     queryKey: ['document', id],
     queryFn: () => documentsApi.get(id),
     refetchInterval: (query: any) => {
-      const data = query.state.data;
-      return data?.status === 'processing_ocr' || data?.status === 'pending' ? 3000 : false;
+      const current = query.state.data as Document | undefined;
+      return current?.status === 'pending' || current?.status === 'processing_ocr' ? 3000 : false;
     },
   });
 
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations', 'document', id],
+    queryFn: () => conversationsApi.list({ scope: 'document', documentId: id }),
+    enabled: !!id,
+  });
+
+  const { data: activeConversation } = useQuery({
+    queryKey: ['conversation', selectedConversationId],
+    queryFn: () => conversationsApi.get(selectedConversationId!),
+    enabled: !!selectedConversationId,
+  });
+
+  useEffect(() => {
+    if (!selectedConversationId && conversations[0]?._id) {
+      setSelectedConversationId(conversations[0]._id);
+    }
+  }, [conversations, selectedConversationId]);
+
   const deleteMutation = useMutation({
     mutationFn: () => documentsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documents'] }); router.push('/documents'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      router.push('/documents');
+    },
   });
 
   const archiveMutation = useMutation({
     mutationFn: () => documentsApi.archive(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document', id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['document', id] });
+      qc.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: () => documentsApi.restore(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['document', id] });
+      qc.invalidateQueries({ queryKey: ['documents'] });
+    },
   });
 
   const ocrMutation = useMutation({
@@ -64,339 +106,445 @@ export default function DocumentDetailPage() {
   });
 
   const summaryMutation = useMutation({
-    mutationFn: () => aiApi.generateSummary(id),
+    mutationFn: (mode: 'short' | 'detailed' | 'key_points' | 'all') => aiApi.generateSummary(id, mode),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['document', id] }),
   });
 
-  const handleAsk = async () => {
-    if (!question.trim()) return;
-    setAskError('');
-    setAnswer(null);
-    setIsAsking(true);
-    try {
-      const result = await aiApi.ask(id, question);
-      setAnswer(result);
-    } catch (err) {
-      setAskError(getErrorMessage(err));
-    } finally {
-      setIsAsking(false);
-    }
-  };
+  const askMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const conversation =
+        activeConversation ||
+        (await conversationsApi.create({
+          title: content.slice(0, 60),
+          scope: 'document',
+          documentId: id,
+        }));
 
-  const copyText = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+      return conversationsApi.sendMessage(conversation._id, {
+        question: content,
+        topK: 6,
+        documentId: id,
+      });
+    },
+    onSuccess: ({ conversation }) => {
+      setSelectedConversationId(conversation._id);
+      qc.invalidateQueries({ queryKey: ['conversations', 'document', id] });
+      qc.invalidateQueries({ queryKey: ['conversation', conversation._id] });
+      setQuestion('');
+      setTab('chat');
+    },
+  });
 
-  const TABS: Array<{ id: Tab; label: string; icon: any }> = [
-    { id: 'overview', label: 'Overview',       icon: BookOpen },
-    { id: 'text',     label: 'Extracted Text', icon: AlignLeft },
-    { id: 'summary',  label: 'Summary',        icon: FileText },
-    { id: 'ask',      label: 'Ask AI',         icon: MessageSquare },
-  ];
+  const summaryData = useMemo<SummaryPayload>(() => ({
+    short: doc?.summaryShort || '',
+    detailed: doc?.summaryDetailed || doc?.summary || '',
+    keyPoints: doc?.summaryBullets || [],
+  }), [doc]);
 
-  if (isLoading) {
+  const activeAssistantMessage = useMemo(() => {
+    const messages = activeConversation?.messages || [];
+    return [...messages].reverse().find((message) => message.role === 'assistant');
+  }, [activeConversation]);
+
+  const previewUrl = getDocumentPreviewUrl(doc?.filename);
+  const highlightTerms = activeAssistantMessage?.highlights?.flatMap((item) => item.matchedTerms) || [];
+
+  if (isLoading || !doc) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex h-64 items-center justify-center">
           <Spinner size="lg" />
         </div>
       </AppLayout>
     );
   }
 
-  if (error || !doc) {
-    return (
-      <AppLayout>
-        <div className="text-center py-20">
-          <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-          <h2 className="text-white font-semibold text-lg">Document not found</h2>
-          <Button variant="secondary" className="mt-4" onClick={() => router.push('/documents')}>
-            Back to documents
-          </Button>
-        </div>
-      </AppLayout>
-    );
-  }
+  const openSourcePage = (pageNumber?: number) => {
+    const url = getDocumentPreviewUrl(doc.filename, pageNumber);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <AppLayout>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 mb-8">
-        <Button variant="ghost" size="sm" onClick={() => router.push('/documents')} className="font-bold text-slate-500 hover:text-brand-600 hover:bg-brand-50">
-          <ArrowLeft className="w-4 h-4 mr-1" /> Documents
-        </Button>
-        <span className="text-slate-300">/</span>
-        <span className="text-slate-900 text-sm font-bold truncate max-w-xs">{doc.originalName}</span>
-      </div>
-
-      {/* Header */}
-      <div className="bg-white rounded-3xl p-8 mb-8 border border-slate-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center shrink-0 shadow-sm">
-            <FileText className="w-8 h-8 text-brand-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start gap-3 flex-wrap">
-              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight truncate flex-1">{doc.originalName}</h1>
-              <StatusBadge status={doc.status} />
-            </div>
-            <div className="flex flex-wrap gap-5 mt-3 text-sm font-medium text-slate-500">
-              <span className="flex items-center gap-1.5"><Zap className="w-4 h-4 opacity-70" /> {formatBytes(doc.size)}</span>
-              {doc.pageCount && <span className="flex items-center gap-1.5"><AlignLeft className="w-4 h-4 opacity-70" /> {doc.pageCount} pages</span>}
-              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 opacity-70" /> {formatDate(doc.createdAt)}</span>
-            </div>
-            {doc.errorMessage && (
-              <div className="mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3 text-red-600 text-sm font-bold">
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-                {doc.errorMessage}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-wrap gap-3 mt-8 pt-8 border-t border-slate-100">
-          <Button variant="secondary" size="sm" onClick={() => ocrMutation.mutate()} isLoading={ocrMutation.isPending} className="bg-white border-slate-200 text-slate-700">
-            <Scan className="w-4 h-4" /> Run OCR Analysis
+      <div className="space-y-8">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => router.push('/documents')}>
+            <ArrowLeft className="w-4 h-4" />
+            Documents
           </Button>
-          {doc.status === 'indexed' && (
-            <Button variant="secondary" size="sm" onClick={() => reindexMutation.mutate()} isLoading={reindexMutation.isPending} className="bg-white border-slate-200 text-slate-700">
-              <RefreshCw className="w-4 h-4" /> Force Re-index
-            </Button>
-          )}
-          {!doc.archived && (
-            <Button variant="secondary" size="sm" onClick={() => archiveMutation.mutate()} isLoading={archiveMutation.isPending} className="bg-white border-slate-200 text-slate-700">
-              <Archive className="w-4 h-4" /> Move to Archive
-            </Button>
-          )}
-          <Button variant="danger" size="sm" onClick={() => setShowDelete(true)} className="ml-auto">
-            <Trash2 className="w-4 h-4" /> Delete Document
-          </Button>
+          <span className="text-slate-300">/</span>
+          <span className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{doc.originalName}</span>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1.5 bg-slate-100/80 border border-slate-200 rounded-2xl p-1.5 mb-8 overflow-x-auto shadow-inner">
-        {TABS.map(({ id: tabId, label, icon: Icon }) => (
-          <button
-            key={tabId}
-            onClick={() => setTab(tabId)}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
-              tab === tabId
-                ? 'bg-white text-brand-700 shadow-sm border border-slate-200'
-                : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {tab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
-          {[
-            { label: 'File Name',     value: doc.originalName },
-            { label: 'Status',        value: <StatusBadge status={doc.status} /> },
-            { label: 'Size',          value: formatBytes(doc.size) },
-            { label: 'MIME Type',     value: doc.mimeType },
-            { label: 'Page Count',    value: doc.pageCount ?? '—' },
-            { label: 'Uploaded',      value: formatDate(doc.createdAt) },
-            { label: 'Last Updated',  value: formatDate(doc.updatedAt) },
-            { label: 'Archived',      value: doc.archived ? 'Yes' : 'No' },
-          ].map(({ label, value }) => (
-            <Card key={label} className="py-5 bg-white border-slate-200">
-              <p className="text-[10px] text-slate-400 uppercase tracking-[0.1em] font-extrabold mb-2 opacity-80">{label}</p>
-              <div className="text-slate-900 text-sm font-bold tracking-tight">{value}</div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {tab === 'text' && (
-        <Card className="animate-fade-in bg-white border-slate-200 p-8">
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Extracted Content</h3>
-            {doc.extractedText && (
-              <Button variant="ghost" size="sm" onClick={() => copyText(doc.extractedText!)} className="text-brand-600 hover:bg-brand-50 font-bold">
-                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copied' : 'Copy Text'}
-              </Button>
-            )}
-          </div>
-          {!doc.extractedText ? (
-            <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
-                <Scan className="w-8 h-8 text-slate-300" />
-              </div>
-              <p className="text-slate-900 font-bold text-lg">No content extracted</p>
-              <p className="text-slate-500 text-sm mt-1 mb-6">Run the OCR analysis to extract text from this document.</p>
-              <Button onClick={() => ocrMutation.mutate()} isLoading={ocrMutation.isPending}>
-                <Scan className="w-4 h-4 mr-1" /> Start OCR Now
-              </Button>
-            </div>
-          ) : (
-            <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100">
-              <pre className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed font-mono max-h-[60vh] overflow-y-auto">
-                {doc.extractedText}
-              </pre>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {tab === 'summary' && (
-        <div className="space-y-6 animate-fade-in">
-          <Card className="bg-white border-slate-200 p-8">
-            <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight">Intelligence Abstract</h3>
-              <Button
-                size="sm" variant={doc.summary ? 'secondary' : 'primary'}
-                onClick={() => summaryMutation.mutate()}
-                isLoading={summaryMutation.isPending}
-                disabled={!doc.extractedText}
-                className={doc.summary ? 'bg-white border-slate-200' : 'shadow-lg shadow-brand-500/20'}
-              >
-                <Zap className="w-4 h-4" />
-                {doc.summary ? 'Regenerate Abstract' : 'Generate Intelligence Abstract'}
-              </Button>
-            </div>
-            {summaryMutation.isPending ? (
-              <InlineLoader text="Synthesizing document insights with AI…" />
-            ) : !doc.summary ? (
-              <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
-                  <Zap className="w-8 h-8 text-slate-300" />
-                </div>
-                <p className="text-slate-900 font-bold text-lg">No summary generated</p>
-                <p className="text-slate-500 text-sm mt-1">
-                  {!doc.extractedText ? 'Extraction required before summarizing' : 'Request an AI-powered executive summary for this file'}
-                </p>
-              </div>
-            ) : (
-              <div className="bg-brand-50/30 rounded-2xl p-8 border border-brand-100 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-brand-500" />
-                <p className="text-slate-800 leading-loose text-lg font-medium italic">
-                  "{doc.summary}"
-                </p>
-              </div>
-            )}
-            {summaryMutation.error && (
-              <p className="text-red-600 font-bold text-sm mt-4 px-4 py-3 bg-red-50 rounded-xl border border-red-100">
-                {getErrorMessage(summaryMutation.error)}
-              </p>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {tab === 'ask' && (
-        <div className="space-y-6 animate-fade-in">
-          <Card className="bg-white border-slate-200 p-8 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-6 tracking-tight">Cognitive Query Interface</h3>
-            {!doc.extractedText ? (
-              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
-                  <MessageSquare className="w-8 h-8 text-slate-300" />
-                </div>
-                <p className="text-slate-900 font-bold text-lg">Query engine disabled</p>
-                <p className="text-slate-500 text-sm mt-1">Extract text from your document to start questioning it with AI.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <Textarea
-                  placeholder="e.g. Find the specific clauses related to liability and summarize the termination conditions."
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  rows={4}
-                  className="bg-slate-50 border-slate-200 focus:bg-white text-lg font-medium placeholder:text-slate-400"
-                  onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) handleAsk(); }}
-                />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    <span className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200">Ctrl</span> + <span className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200">Enter</span> to query
+        <Card className="overflow-hidden border-surface-200 bg-gradient-to-br from-white via-surface-50 to-brand-50/40">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
+            <div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-600 dark:text-brand-300">
+                    Document intelligence
+                  </p>
+                  <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+                    {doc.originalName}
+                  </h1>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <StatusBadge status={doc.status} />
+                    <span className="rounded-full border border-surface-200 bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                      {formatBytes(doc.size)}
+                    </span>
+                    <span className="rounded-full border border-surface-200 bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                      {formatDate(doc.createdAt)}
+                    </span>
                   </div>
-                  <Button onClick={handleAsk} isLoading={isAsking} disabled={!question.trim()} size="lg" className="shadow-lg shadow-brand-500/20 px-8">
-                    <Zap className="w-5 h-5 mr-1" /> Ask Cognitive Engine
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button variant="secondary" onClick={() => ocrMutation.mutate()} isLoading={ocrMutation.isPending}>
+                  <Scan className="w-4 h-4" />
+                  OCR
+                </Button>
+                <Button variant="secondary" onClick={() => reindexMutation.mutate()} isLoading={reindexMutation.isPending}>
+                  <RefreshCw className="w-4 h-4" />
+                  Re-index
+                </Button>
+                {!doc.archived ? (
+                  <Button variant="secondary" onClick={() => archiveMutation.mutate()} isLoading={archiveMutation.isPending}>
+                    <Archive className="w-4 h-4" />
+                    Archive
                   </Button>
-                </div>
+                ) : (
+                  <Button variant="secondary" onClick={() => restoreMutation.mutate()} isLoading={restoreMutation.isPending}>
+                    <Undo2 className="w-4 h-4" />
+                    Restore
+                  </Button>
+                )}
+                <Button onClick={() => summaryMutation.mutate('all')} isLoading={summaryMutation.isPending}>
+                  <Sparkles className="w-4 h-4" />
+                  Refresh summaries
+                </Button>
+                <Button variant="danger" onClick={() => setShowDelete(true)} className="ml-auto">
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </Button>
               </div>
-            )}
-          </Card>
+            </div>
 
-          {isAsking && (
-            <Card className="bg-slate-50/50 border-slate-200 shadow-sm">
-              <InlineLoader text="Processing query through deep semantic indexing…" />
-            </Card>
-          )}
-
-          {askError && (
-            <Card className="bg-red-50 border-red-100">
-              <p className="text-red-700 font-bold flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" /> {askError}
-              </p>
-            </Card>
-          )}
-
-          {answer && (
-            <div className="animate-slide-up space-y-6">
-              <Card className="bg-white border-2 border-brand-100 shadow-xl shadow-brand-500/10 p-8 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4">
-                   <div className="w-12 h-12 rounded-2xl bg-brand- gradient flex items-center justify-center opacity-10">
-                     <Brain className="w-8 h-8 text-brand-600" />
-                   </div>
-                </div>
-                <div className="flex items-start gap-5">
-                  <div className="w-12 h-12 rounded-2xl bg-brand-600 flex items-center justify-center shrink-0 shadow-lg shadow-brand-500/30">
-                    <MessageSquare className="w-6 h-6 text-white" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              <Card className="border-surface-200 bg-white/90 p-5">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">AI state</p>
+                <div className="mt-4 space-y-3 text-sm font-medium text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <span>Conversations</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{conversations.length}</span>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[11px] text-brand-600 font-extrabold uppercase tracking-[0.2em] mb-4">Deep Insight Engine Response</p>
-                    <p className="text-slate-800 text-xl font-medium leading-relaxed leading-extra">{answer.answer}</p>
+                  <div className="flex items-center justify-between">
+                    <span>Pages</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{doc.pageCount || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Summary ready</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{summaryData.detailed ? 'Yes' : 'No'}</span>
                   </div>
                 </div>
+              </Card>
 
-                {answer.sources?.length > 0 && (
-                  <div className="mt-10 pt-10 border-t border-slate-100">
-                    <div className="flex items-center justify-between mb-6">
-                      <p className="text-[11px] text-slate-400 font-extrabold uppercase tracking-[0.2em]">
-                        Verified Evidence Sources ({answer.sources.length})
-                      </p>
-                      <div className="h-0.5 flex-1 bg-slate-50 mx-4" />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {answer.sources.map((src, i) => (
-                        <div key={i} className="px-5 py-5 rounded-2xl bg-slate-50/50 border border-slate-100 hover:bg-white hover:border-slate-200 transition-all group">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-[10px] font-extrabold text-brand-600 uppercase tracking-widest bg-brand-50 px-2.5 py-1 rounded-full border border-brand-100">Source Fragment {i + 1}</span>
-                            <span className="text-[10px] items-center flex gap-1 font-bold text-slate-400">confidence: {(src.score * 100).toFixed(1)}%</span>
-                          </div>
-                          <p className="text-xs text-slate-600 font-medium leading-relaxed line-clamp-4 italic">"{src.text}"</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+              <Card className="border-surface-200 bg-slate-950 text-white">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/60">Preview</p>
+                <p className="mt-3 text-sm font-medium text-white/80">
+                  Open the original document and jump to cited pages from the conversation sources.
+                </p>
+                {previewUrl && (
+                  <Button
+                    variant="secondary"
+                    className="mt-4 border-white/10 bg-white/10 text-white hover:bg-white/15"
+                    onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open original
+                  </Button>
                 )}
               </Card>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        </Card>
 
-      {/* Delete confirm */}
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-surface-200 bg-surface-100 p-2">
+          {[
+            { id: 'overview', label: 'Overview', icon: BookOpen },
+            { id: 'highlights', label: 'Highlights', icon: Highlighter },
+            { id: 'summary', label: 'Summaries', icon: Sparkles },
+            { id: 'chat', label: 'AI Chat', icon: FileSearch },
+          ].map(({ id: tabId, label, icon: Icon }) => (
+            <button
+              key={tabId}
+              onClick={() => setTab(tabId as DetailTab)}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+                tab === tabId
+                  ? 'border border-surface-200 bg-white text-brand-700 shadow-sm'
+                  : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'overview' && (
+          <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
+            <Card className="border-surface-200">
+              <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Document preview</h2>
+              <div className="mt-5 overflow-hidden rounded-3xl border border-surface-200 bg-slate-50">
+                {doc.mimeType === 'application/pdf' && previewUrl ? (
+                  <iframe
+                    title="Document preview"
+                    src={previewUrl}
+                    className="h-[720px] w-full bg-white"
+                  />
+                ) : (
+                  <div className="flex h-[320px] items-center justify-center text-sm font-medium text-slate-500">
+                    Inline preview is available for PDF documents.
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <Card className="border-surface-200">
+              <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Latest AI evidence</h2>
+              <div className="mt-5 space-y-4">
+                {!activeAssistantMessage?.sources?.length ? (
+                  <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-sm font-medium text-slate-500">
+                    Ask a question in the AI Chat tab to generate source-backed evidence.
+                  </div>
+                ) : (
+                  activeAssistantMessage.sources.map((source, index) => (
+                    <div key={`${source.chunkId}-${index}`} className="rounded-2xl border border-surface-200 bg-white px-4 py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{source.documentName}</p>
+                        <Button variant="ghost" size="sm" onClick={() => openSourcePage(source.pageNumber)}>
+                          Open source
+                        </Button>
+                      </div>
+                      <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{source.text}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {tab === 'highlights' && (
+          <Card className="border-surface-200">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Relevant passages</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                  Highlighted from the latest assistant answer. This is a safe first step toward full PDF-level highlighting.
+                </p>
+              </div>
+              {activeAssistantMessage?.sources?.[0]?.pageNumber && (
+                <Button variant="secondary" onClick={() => openSourcePage(activeAssistantMessage.sources?.[0]?.pageNumber)}>
+                  <ExternalLink className="w-4 h-4" />
+                  Open cited page
+                </Button>
+              )}
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr,1.1fr]">
+              <div className="space-y-4">
+                {(activeAssistantMessage?.highlights || []).length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-sm font-medium text-slate-500">
+                    No AI highlight available yet. Ask a question first to extract relevant passages.
+                  </div>
+                ) : (
+                  activeAssistantMessage?.highlights?.map((highlight, index) => (
+                    <div key={`${highlight.sourceIndex}-${index}`} className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-4">
+                      <p
+                        className="text-sm leading-7 text-slate-700"
+                        dangerouslySetInnerHTML={{ __html: highlightText(highlight.snippet, highlight.matchedTerms) }}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="rounded-3xl border border-surface-200 bg-slate-50 p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <AlignLeft className="w-4 h-4 text-slate-400" />
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Extracted text with dynamic highlighting</p>
+                </div>
+                <div className="max-h-[720px] overflow-auto rounded-2xl bg-white p-6">
+                  <p
+                    className="whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300"
+                    dangerouslySetInnerHTML={{
+                      __html: highlightText(doc.extractedText || 'No extracted text available.', highlightTerms),
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {tab === 'summary' && (
+          <Card className="border-surface-200">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Multi-format summaries</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                  Short brief, detailed synthesis, and key points, all generated from the existing OCR text.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(['short', 'detailed', 'key_points'] as SummaryView[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setSummaryView(mode)}
+                    className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+                      summaryView === mode
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-surface-100 text-slate-600 hover:bg-surface-200'
+                    }`}
+                  >
+                    {mode === 'short' ? 'Short' : mode === 'detailed' ? 'Detailed' : 'Key points'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              {summaryView === 'key_points' ? (
+                summaryData.keyPoints.length ? (
+                  <div className="grid gap-3">
+                    {summaryData.keyPoints.map((point, index) => (
+                      <div key={index} className="rounded-2xl border border-surface-200 bg-white px-4 py-4 text-sm font-medium leading-7 text-slate-700 dark:text-slate-300">
+                        {point}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptySummary onGenerate={() => summaryMutation.mutate('all')} isLoading={summaryMutation.isPending} />
+                )
+              ) : summaryData[summaryView] ? (
+                <div className="rounded-3xl border border-brand-500/15 bg-gradient-to-br from-brand-50/70 to-white px-6 py-6 text-sm leading-8 text-slate-700 dark:text-slate-200">
+                  {summaryData[summaryView]}
+                </div>
+              ) : (
+                <EmptySummary onGenerate={() => summaryMutation.mutate('all')} isLoading={summaryMutation.isPending} />
+              )}
+
+              {summaryMutation.isError && (
+                <p className="mt-4 text-sm font-bold text-red-600">{getErrorMessage(summaryMutation.error)}</p>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {tab === 'chat' && (
+          <div className="grid gap-8 xl:grid-cols-[320px,1fr]">
+            <Card className="border-surface-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">History</p>
+                  <h2 className="mt-2 text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Document threads</h2>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    const conversation = await conversationsApi.create({
+                      title: 'New document thread',
+                      scope: 'document',
+                      documentId: id,
+                    });
+                    setSelectedConversationId(conversation._id);
+                    qc.invalidateQueries({ queryKey: ['conversations', 'document', id] });
+                  }}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  New
+                </Button>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {conversations.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-6 text-sm font-medium text-slate-500">
+                    No conversation yet for this document.
+                  </div>
+                ) : (
+                  conversations.map((conversation: Conversation) => (
+                    <button
+                      key={conversation._id}
+                      onClick={() => setSelectedConversationId(conversation._id)}
+                      className={`w-full rounded-2xl border px-4 py-4 text-left transition-all ${
+                        selectedConversationId === conversation._id
+                          ? 'border-brand-500/30 bg-brand-50/80 shadow-sm'
+                          : 'border-surface-200 bg-white hover:border-brand-500/20 hover:bg-surface-50'
+                      }`}
+                    >
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{conversation.title}</p>
+                      <p className="mt-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                        {formatDate(conversation.lastMessageAt)}
+                      </p>
+                    </button>
+                  ))
+                )}
+              </div>
+            </Card>
+
+            <div className="space-y-4">
+              <ConversationPanel
+                conversation={activeConversation || null}
+                question={question}
+                onQuestionChange={setQuestion}
+                onSend={() => askMutation.mutate(question)}
+                isSending={askMutation.isPending}
+                placeholder="Ask this specific document anything: clauses, dates, obligations, exceptions..."
+                emptyTitle="Document-specific assistant"
+                emptyDescription="This thread is scoped to the current document and keeps the full conversation history."
+              />
+
+              {askMutation.isError && (
+                <Card className="border-red-200 bg-red-50 text-sm font-bold text-red-700">
+                  {getErrorMessage(askMutation.error)}
+                </Card>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       <ConfirmModal
         isOpen={showDelete}
         onClose={() => setShowDelete(false)}
         onConfirm={() => deleteMutation.mutate()}
         isLoading={deleteMutation.isPending}
         title="Delete Document"
-        message={`Are you sure you want to permanently delete "${doc.originalName}"? This action cannot be undone.`}
+        message={`Delete "${doc.originalName}" and all related OCR, embeddings, summaries, and conversations?`}
         confirmLabel="Delete"
         danger
       />
     </AppLayout>
   );
 }
+
+const EmptySummary = ({
+  onGenerate,
+  isLoading,
+}: {
+  onGenerate: () => void;
+  isLoading?: boolean;
+}) => (
+  <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-6 py-12 text-center">
+    <FileText className="mx-auto w-10 h-10 text-slate-300" />
+    <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">No summary generated yet</p>
+    <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+      Generate the short, detailed, and key-point views from the current OCR text.
+    </p>
+    <Button className="mt-5" onClick={onGenerate} isLoading={isLoading}>
+      <Sparkles className="w-4 h-4" />
+      Generate summaries
+    </Button>
+  </div>
+);

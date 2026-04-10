@@ -94,6 +94,7 @@ export default function RegisterPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             icon={<Lock className="w-5 h-5" />}
+            allowPasswordToggle
             required
             minLength={8}
             autoComplete="new-password"
