@@ -4,12 +4,10 @@ import type {
   SearchResult, RagAnswer, ApiResponse, SummaryPayload, Conversation, RegisterResponse, ResendVerificationResponse, LoginChallengeResponse, ResendLoginCodeResponse, ForgotPasswordResponse
 } from '@/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}`
-  : '';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-// Use Next.js rewrites in production (relative), direct in dev
-const BASE_URL = typeof window !== 'undefined' ? '/api' : `${API_BASE}/api`;
+// Use full backend URL in browser, relative path in SSR
+const BASE_URL = typeof window !== 'undefined' ? `${API_BASE}/api` : `${API_BASE}/api`;
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,

@@ -1,19 +1,6 @@
-import Groq from 'groq-sdk';
 import { generateEmbedding, semanticSearch } from '../embeddings/embedding.service';
-import { env } from '../../config/env';
+import { chatCompletionWithRetry } from '../../utils/llm';
 import { logger } from '../../utils/logger';
-
-const QA_MODEL = 'llama-3.3-70b-versatile';
-
-let groqClient: Groq | null = null;
-
-const getGroq = (): Groq => {
-  if (!groqClient) {
-    if (!env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not configured');
-    groqClient = new Groq({ apiKey: env.GROQ_API_KEY });
-  }
-  return groqClient;
-};
 
 export interface RagSource {
   chunkId: string;
@@ -66,8 +53,6 @@ export const askQuestion = async (
     .map((s, i) => `[Source ${i + 1} - ${s.documentName}]:\n${s.text}`)
     .join('\n\n---\n\n');
 
-  const groq = getGroq();
-
   const systemPrompt = `You are a helpful document assistant. Answer the user's question ONLY based on the provided document context below.
 
 Rules:
@@ -80,8 +65,8 @@ Rules:
 Document Context:
 ${context}`;
 
-  const response = await groq.chat.completions.create({
-    model: QA_MODEL,
+  const answer = await chatCompletionWithRetry({
+    model: 'meta-llama/llama-3.3-70b-instruct:free',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: question },
@@ -90,7 +75,6 @@ ${context}`;
     max_tokens: 1000,
   });
 
-  const answer = response.choices[0]?.message?.content?.trim() || '';
   const hasAnswer = !answer.toLowerCase().includes('cannot find an answer');
 
   return { answer, sources, hasAnswer };

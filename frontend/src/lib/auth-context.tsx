@@ -88,7 +88,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (result.emailPreviewUrl) params.set('previewUrl', result.emailPreviewUrl);
     if (!result.deliveredToInbox) params.set('delivery', 'fallback');
 
-    router.push(`/verify-email?${params.toString()}`);
+    // If auto-verify returned a token, log in immediately
+    if ((result as any).token) {
+      setUser(result.user);
+      router.push('/dashboard');
+    } else {
+      router.push(`/verify-email?${params.toString()}`);
+    }
     return result;
   };
 

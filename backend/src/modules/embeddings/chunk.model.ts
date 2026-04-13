@@ -17,13 +17,11 @@ const documentChunkSchema = new Schema<IDocumentChunk>(
       type: Schema.Types.ObjectId,
       ref: 'Document',
       required: true,
-      index: true,
     },
     ownerId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     chunkIndex: {
       type: Number,

@@ -9,8 +9,6 @@ const envSchema = z.object({
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  OPENAI_API_KEY: z.string().optional(),
-  GROQ_API_KEY: z.string().optional(),
   SMTP_HOST: z.string().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().email(),
@@ -26,6 +24,15 @@ const envSchema = z.object({
   OCR_LANGUAGES: z.string().default('fra+eng'),
   REDIS_URL: z.string().optional(),
   USE_SIMPLE_QUEUE: z.string().default('true').transform((v) => v === 'true'),
+  AUTO_VERIFY: z.string().default('false').transform((v) => v === 'true'),
+
+  // ── AI Providers (at least one must be configured) ───────────────────────
+  // Option 1: Groq — genuinely free, no credits (get key at https://console.groq.com)
+  GROQ_API_KEY: z.string().optional(),
+  // Option 2: OpenRouter — free models, may need credits
+  OPENROUTER_API_KEY: z.string().optional(),
+  // Option 3: Ollama — local, completely free (default: http://localhost:11434)
+  OLLAMA_URL: z.string().default('http://localhost:11434'),
 });
 
 const parsed = envSchema.safeParse(process.env);

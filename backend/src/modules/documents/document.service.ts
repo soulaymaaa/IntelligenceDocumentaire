@@ -28,6 +28,7 @@ export const listDocuments = async (params: ListDocumentsParams) => {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
+      .select('-__v')
       .lean(),
     DocumentModel.countDocuments(query),
   ]);
@@ -36,7 +37,7 @@ export const listDocuments = async (params: ListDocumentsParams) => {
 };
 
 export const getDocument = async (id: string, ownerId: string): Promise<IDocument> => {
-  const doc = await DocumentModel.findById(id).lean().exec();
+  const doc = await DocumentModel.findById(id).select('-__v').lean().exec();
   if (!doc) throw new NotFoundError('Document');
   if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
   return doc as unknown as IDocument;

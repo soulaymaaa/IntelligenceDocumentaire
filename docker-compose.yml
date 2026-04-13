@@ -1,19 +1,4 @@
-version: '3.9'
-
 services:
-  mongodb:
-    image: mongo:7.0
-    container_name: intelligence_mongo
-    restart: unless-stopped
-    ports:
-      - '27017:27017'
-    volumes:
-      - mongo_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: intelligence_documentaire
-    networks:
-      - app_network
-
   backend:
     build:
       context: ./backend
@@ -22,23 +7,16 @@ services:
     restart: unless-stopped
     ports:
       - '3001:3001'
+    env_file:
+      - ./backend/.env
     environment:
       NODE_ENV: production
       PORT: 3001
-      MONGODB_URI: mongodb://mongodb:27017/intelligence_documentaire
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: 7d
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
       UPLOAD_DIR: /app/uploads
-      MAX_FILE_SIZE_MB: 50
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      OCR_LANGUAGES: fra+eng
       USE_SIMPLE_QUEUE: 'true'
     volumes:
       - uploads_data:/app/uploads
       - logs_data:/app/logs
-    depends_on:
-      - mongodb
     networks:
       - app_network
     healthcheck:
@@ -64,7 +42,6 @@ services:
       - app_network
 
 volumes:
-  mongo_data:
   uploads_data:
   logs_data:
 

@@ -39,13 +39,19 @@ export const register = asyncHandler(async (req: AuthRequest, res: Response, _ne
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
 
-  const { user } = await authService.register(parsed.data);
+  const { user, token } = await authService.register(parsed.data);
 
   await logAction({
     userId: (user as any)._id?.toString(),
     action: 'USER_REGISTER',
     resourceType: 'User',
   });
+
+  // If auto-verify is on, set the cookie and return token
+  if (token) {
+    res.cookie('token', token, COOKIE_OPTIONS);
+    return successResponse(res, { user, token }, 'Account created and logged in.', 201);
+  }
 
   return successResponse(res, { user }, 'Account created. Please check your email for the verification code.', 201);
 });

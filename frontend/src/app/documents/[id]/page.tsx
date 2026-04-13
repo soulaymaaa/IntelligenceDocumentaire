@@ -159,6 +159,21 @@ export default function DocumentDetailPage() {
     );
   }
 
+  if (error || !doc) {
+    return (
+      <AppLayout>
+        <div className="text-center py-20">
+          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+          <h2 className="text-slate-900 dark:text-slate-100 font-semibold text-lg">Document not found</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">The document you are looking for does not exist or has been deleted.</p>
+          <Button variant="secondary" className="mt-4" onClick={() => router.push('/documents')}>
+            Back to documents
+          </Button>
+        </div>
+      </AppLayout>
+    );
+  }
+
   const openSourcePage = (pageNumber?: number) => {
     const url = getDocumentPreviewUrl(doc.filename, pageNumber);
     if (url) window.open(url, '_blank', 'noopener,noreferrer');

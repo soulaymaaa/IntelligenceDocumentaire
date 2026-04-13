@@ -1,29 +1,18 @@
-import Groq from 'groq-sdk';
 import { DocumentModel } from '../documents/document.model';
 import { DocumentChunkModel } from '../embeddings/chunk.model';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { NotFoundError, ForbiddenError } from '../../utils/errors';
 import { chunkArray } from '../../utils/helpers';
+import { chatCompletionWithRetry } from '../../utils/llm';
 
-const SUMMARY_MODEL = 'llama-3.3-70b-versatile';
 const MAX_CONTEXT_CHARS = 12000;
-
-let groqClient: Groq | null = null;
-
-const getGroq = (): Groq => {
-  if (!groqClient) {
-    if (!env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not configured');
-    groqClient = new Groq({ apiKey: env.GROQ_API_KEY });
-  }
-  return groqClient;
-};
 
 // ── Summarization ─────────────────────────────────────────────────────────────
 
-const summarizeChunk = async (groq: Groq, text: string): Promise<string> => {
-  const response = await groq.chat.completions.create({
-    model: SUMMARY_MODEL,
+const summarizeChunk = async (text: string): Promise<string> => {
+  return chatCompletionWithRetry({
+    model: 'meta-llama/llama-3.3-70b-instruct:free',
     messages: [
       {
         role: 'system',
@@ -35,13 +24,12 @@ const summarizeChunk = async (groq: Groq, text: string): Promise<string> => {
     temperature: 0.3,
     max_tokens: 500,
   });
-  return response.choices[0]?.message?.content?.trim() || '';
 };
 
-const combineSummaries = async (groq: Groq, summaries: string[]): Promise<string> => {
+const combineSummaries = async (summaries: string[]): Promise<string> => {
   const combined = summaries.join('\n\n---\n\n');
-  const response = await groq.chat.completions.create({
-    model: SUMMARY_MODEL,
+  return chatCompletionWithRetry({
+    model: 'meta-llama/llama-3.3-70b-instruct:free',
     messages: [
       {
         role: 'system',
@@ -53,7 +41,6 @@ const combineSummaries = async (groq: Groq, summaries: string[]): Promise<string
     temperature: 0.3,
     max_tokens: 800,
   });
-  return response.choices[0]?.message?.content?.trim() || '';
 };
 
 export const generateSummary = async (documentId: string, ownerId: string): Promise<string> => {
@@ -65,7 +52,6 @@ export const generateSummary = async (documentId: string, ownerId: string): Prom
     throw new Error('Document has no extracted text. Run OCR first.');
   }
 
-  const groq = getGroq();
   const text = doc.extractedText;
 
   let summary: string;
@@ -73,7 +59,7 @@ export const generateSummary = async (documentId: string, ownerId: string): Prom
   if (text.length <= MAX_CONTEXT_CHARS) {
     // Single-pass summarization
     logger.info(`Summarizing document ${documentId} in single pass`);
-    summary = await summarizeChunk(groq, text);
+    summary = await summarizeChunk(text);
   } else {
     // Map-reduce: chunk → summarize each → combine
     logger.info(`Summarizing document ${documentId} using map-reduce`);
@@ -82,11 +68,14 @@ export const generateSummary = async (documentId: string, ownerId: string): Prom
       segments.push(text.substring(i, i + MAX_CONTEXT_CHARS));
     }
 
-    const partialSummaries = await Promise.all(
-      segments.map((seg) => summarizeChunk(groq, seg))
-    );
+    // Process sequentially to avoid rate limiting on parallel calls
+    const partialSummaries: string[] = [];
+    for (const seg of segments) {
+      const s = await summarizeChunk(seg);
+      partialSummaries.push(s);
+    }
 
-    summary = await combineSummaries(groq, partialSummaries);
+    summary = await combineSummaries(partialSummaries);
   }
 
   // Persist

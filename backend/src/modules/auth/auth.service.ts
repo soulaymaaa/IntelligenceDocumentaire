@@ -25,7 +25,7 @@ const SALT_ROUNDS = 12;
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-export const register = async (params: RegisterParams): Promise<{ user: Omit<IUser, 'passwordHash'> }> => {
+export const register = async (params: RegisterParams): Promise<{ user: Omit<IUser, 'passwordHash'>; token?: string }> => {
   const { name, email, password } = params;
   const normalizedEmail = email.toLowerCase();
 
@@ -33,22 +33,34 @@ export const register = async (params: RegisterParams): Promise<{ user: Omit<IUs
   if (existing) throw new ConflictError('An account with this email already exists');
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const otp = generateOtp();
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+  // Auto-verify in dev when AUTO_VERIFY=true
+  const isVerified = env.AUTO_VERIFY;
+  const otp = isVerified ? undefined : generateOtp();
+  const expiresAt = isVerified ? undefined : new Date(Date.now() + 15 * 60 * 1000);
 
   const user = await UserModel.create({
     name,
     email: normalizedEmail,
     passwordHash,
     role: 'user',
-    isVerified: false,
-    verificationCode: otp,
-    verificationCodeExpiresAt: expiresAt,
+    isVerified,
+    ...(otp && { verificationCode: otp }),
+    ...(expiresAt && { verificationCodeExpiresAt: expiresAt }),
   });
 
-  await sendVerificationEmail(normalizedEmail, otp);
+  // Only send verification email if not auto-verified
+  if (!isVerified) {
+    await sendVerificationEmail(normalizedEmail, otp!);
+  }
 
-  return { user: user.toJSON() as any };
+  // If auto-verified, return token immediately
+  const result: { user: Omit<IUser, 'passwordHash'>; token?: string } = { user: user.toJSON() as any };
+  if (isVerified) {
+    result.token = signToken(user._id.toString(), user.role);
+  }
+
+  return result;
 };
 
 export const verifyEmail = async (email: string, code: string): Promise<AuthResult> => {

@@ -25,6 +25,7 @@ const seed = async () => {
     email: 'demo@example.com',
     passwordHash: demoPasswordHash,
     role: 'user',
+    isVerified: true,
   });
 
   const adminUser = await UserModel.create({
@@ -32,6 +33,7 @@ const seed = async () => {
     email: 'admin@example.com',
     passwordHash: await bcrypt.hash('Admin1234!', 12),
     role: 'admin',
+    isVerified: true,
   });
 
   logger.info(`Created users: ${demoUser.email}, ${adminUser.email}`);
@@ -127,13 +129,15 @@ Bank: BNP Paribas — IBAN: FR76 1234 5678 9012 3456 7890 123`,
   logger.info(`Created ${3} demo documents`);
 
   // Create demo chunks for indexed documents
+  // Xenova all-MiniLM-L6-v2 produces 384-dim embeddings
+  const EMBEDDING_DIM = 384;
   const demoChunks = [
     {
       documentId: demoDoc._id,
       ownerId: demoUser._id,
       chunkIndex: 0,
       text: 'Annual Report 2024 - Executive Summary. Record revenues of €45 million, representing a 23% growth.',
-      embedding: Array.from({ length: 1536 }, () => Math.random() * 0.1),
+      embedding: Array.from({ length: EMBEDDING_DIM }, () => Math.random() * 0.1),
       tokenCount: 45,
     },
     {
@@ -141,7 +145,7 @@ Bank: BNP Paribas — IBAN: FR76 1234 5678 9012 3456 7890 123`,
       ownerId: demoUser._id,
       chunkIndex: 1,
       text: 'Key Highlights: Revenue €45M (+23% YoY), Net Profit €8.2M (+15% YoY), 342 employees, Customer Satisfaction 4.7/5.',
-      embedding: Array.from({ length: 1536 }, () => Math.random() * 0.1),
+      embedding: Array.from({ length: EMBEDDING_DIM }, () => Math.random() * 0.1),
       tokenCount: 52,
     },
     {
@@ -149,7 +153,7 @@ Bank: BNP Paribas — IBAN: FR76 1234 5678 9012 3456 7890 123`,
       ownerId: demoUser._id,
       chunkIndex: 0,
       text: 'Invoice #INV-2024-0892 from TechCorp Solutions SAS. Software development 160h × €150 = €24,000. Total: €37,800.',
-      embedding: Array.from({ length: 1536 }, () => Math.random() * 0.1),
+      embedding: Array.from({ length: EMBEDDING_DIM }, () => Math.random() * 0.1),
       tokenCount: 48,
     },
   ];

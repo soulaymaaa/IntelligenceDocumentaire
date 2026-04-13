@@ -64,6 +64,5 @@ const userSchema = new Schema<IUser>(
   }
 );
 
-userSchema.index({ email: 1 });
-
+// Unique email is already indexed by unique: true
 export const UserModel: Model<IUser> = mongoose.model<IUser>('User', userSchema);
