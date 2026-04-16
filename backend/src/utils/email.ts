@@ -2,7 +2,12 @@ import nodemailer from 'nodemailer';
 import { logger } from './logger';
 import { env } from '../config/env';
 
-export const sendVerificationEmail = async (to: string, code: string): Promise<void> => {
+export interface VerificationEmailResult {
+  deliveredToInbox: boolean;
+  previewUrl?: string;
+}
+
+export const sendVerificationEmail = async (to: string, code: string): Promise<VerificationEmailResult> => {
   try {
     let transportConfig: any = {
       host: env.SMTP_HOST,
@@ -55,6 +60,11 @@ export const sendVerificationEmail = async (to: string, code: string): Promise<v
     if (previewUrl) {
       logger.info(`Preview URL (Ethereal): ${previewUrl}`);
     }
+
+    return {
+      deliveredToInbox: !previewUrl,
+      previewUrl: previewUrl || undefined,
+    };
   } catch (error) {
     logger.error('Failed to send verification email:', error);
     // Log the code anyway so the user can verify in dev even if email fails
@@ -62,5 +72,8 @@ export const sendVerificationEmail = async (to: string, code: string): Promise<v
     if (env.NODE_ENV === 'production') {
       throw new Error('Failed to send verification email');
     }
+    return {
+      deliveredToInbox: false,
+    };
   }
 };

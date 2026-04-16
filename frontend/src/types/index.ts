@@ -130,17 +130,9 @@ export interface ResendVerificationResponse {
   deliveredToInbox: boolean;
 }
 
-export interface LoginChallengeResponse {
+export interface LoginResponse {
   user: User;
-  devLoginCode?: string;
-  emailPreviewUrl?: string;
-  deliveredToInbox: boolean;
-}
-
-export interface ResendLoginCodeResponse {
-  devLoginCode?: string;
-  emailPreviewUrl?: string;
-  deliveredToInbox: boolean;
+  token: string;
 }
 
 export interface ForgotPasswordResponse {

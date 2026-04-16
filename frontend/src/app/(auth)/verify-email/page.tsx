@@ -21,7 +21,7 @@ function VerifyEmailContent() {
     previewUrl: '',
     delivery: '',
   });
-  
+
   const email = searchParams.get('email') || fallbackData.email || '';
   const devCode = searchParams.get('devCode') || fallbackData.devCode || '';
   const previewUrl = searchParams.get('previewUrl') || fallbackData.previewUrl || '';
@@ -33,6 +33,15 @@ function VerifyEmailContent() {
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [hasRecoveredFallback, setHasRecoveredFallback] = useState(false);
+
+  const handleAlreadyVerified = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('verify-email-fallback');
+    }
+    setError('');
+    setSuccess('This email is already verified. Redirecting you to login...');
+    setTimeout(() => router.push(`/login?email=${encodeURIComponent(email)}`), 1200);
+  };
 
   useEffect(() => {
     if (!email) {
@@ -92,11 +101,16 @@ function VerifyEmailContent() {
           delivery: result.deliveredToInbox ? '' : 'fallback',
         });
         if (result.devVerificationCode) {
-          setSuccess(`Code temporaire recupere automatiquement: ${result.devVerificationCode}`);
+          setSuccess(`Temporary code recovered automatically: ${result.devVerificationCode}`);
           setResendCooldown(60);
         }
-      } catch {
-        setError('Le code de secours n’a pas pu etre recupere automatiquement. Clique sur "Resend".');
+      } catch (err) {
+        const message = getErrorMessage(err).toLowerCase();
+        if (message.includes('already verified')) {
+          handleAlreadyVerified();
+          return;
+        }
+        setError('Unable to recover the fallback code automatically. Click "Resend".');
       }
     };
 
@@ -117,16 +131,20 @@ function VerifyEmailContent() {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('verify-email-fallback');
       }
-      // verify calls router.push('/dashboard') on success
     } catch (err) {
-      setError(getErrorMessage(err));
+      const message = getErrorMessage(err);
+      if (message.toLowerCase().includes('already verified')) {
+        handleAlreadyVerified();
+        return;
+      }
+      setError(message);
       setIsLoading(false);
     }
   };
 
   const handleResend = async () => {
     if (resendCooldown > 0) return;
-    
+
     setError('');
     setSuccess('');
     setIsResending(true);
@@ -152,11 +170,16 @@ function VerifyEmailContent() {
       setSuccess(
         result.deliveredToInbox
           ? 'A new verification code has been sent to your email.'
-          : `Email delivery fallback active in development. Your new code is: ${result.devVerificationCode || 'check backend logs'}.`
+          : `Email delivery fallback is active in development. Your new code is: ${result.devVerificationCode || 'check backend logs'}.`
       );
-      setResendCooldown(60); // 60 seconds cooldown
+      setResendCooldown(60);
     } catch (err) {
-      setError(getErrorMessage(err));
+      const message = getErrorMessage(err);
+      if (message.toLowerCase().includes('already verified')) {
+        handleAlreadyVerified();
+        return;
+      }
+      setError(message);
     } finally {
       setIsResending(false);
     }
@@ -186,15 +209,15 @@ function VerifyEmailContent() {
         <form onSubmit={handleSubmit} className="space-y-8">
           {deliveryMode === 'fallback' && (
             <div className="px-4 py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm font-bold leading-relaxed">
-              Aucun vrai email n&apos;a ete distribue dans cet environnement de developpement.
+              No real email was delivered in this development environment.
               {devCode && (
                 <div className="mt-2">
-                  Code temporaire: <span className="font-extrabold tracking-[0.2em]">{devCode}</span>
+                  Temporary code: <span className="font-extrabold tracking-[0.2em]">{devCode}</span>
                 </div>
               )}
               {previewUrl && (
                 <div className="mt-2">
-                  Preview mail: <a href={previewUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">ouvrir le mail de test</a>
+                  Preview email: <a href={previewUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">open test mail</a>
                 </div>
               )}
             </div>
@@ -242,10 +265,7 @@ function VerifyEmailContent() {
               className="text-sm font-bold text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               <RefreshCw className={`w-4 h-4 ${isResending ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-              {resendCooldown > 0 
-                ? `Resend code in ${resendCooldown}s` 
-                : 'Didn&apos;t receive code? Resend'
-              }
+              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Didn\'t receive code? Resend'}
             </button>
           </div>
         </form>

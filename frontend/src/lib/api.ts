@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import type {
   User, Document, DashboardStats, PaginationMeta,
-  SearchResult, RagAnswer, ApiResponse, SummaryPayload, Conversation, RegisterResponse, ResendVerificationResponse, LoginChallengeResponse, ResendLoginCodeResponse, ForgotPasswordResponse
+  SearchResult, RagAnswer, ApiResponse, SummaryPayload, Conversation, RegisterResponse, ResendVerificationResponse, LoginResponse, ForgotPasswordResponse
 } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -49,15 +49,15 @@ export const authApi = {
     return extractData(res);
   },
 
-  verifyEmail: async (data: { email: string; code: string }) => {
-    const res = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/verify-email', data);
+  login: async (data: { email: string; password: string }) => {
+    const res = await api.post<ApiResponse<LoginResponse>>('/auth/login', data);
     const result = extractData(res);
     if (result.token) localStorage.setItem('auth_token', result.token);
     return result;
   },
 
-  verifyLogin: async (data: { email: string; code: string }) => {
-    const res = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/verify-login', data);
+  verifyEmail: async (data: { email: string; code: string }) => {
+    const res = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/verify-email', data);
     const result = extractData(res);
     if (result.token) localStorage.setItem('auth_token', result.token);
     return result;
@@ -68,19 +68,20 @@ export const authApi = {
     return extractData(res);
   },
 
-  login: async (data: { email: string; password: string }) => {
-    const res = await api.post<ApiResponse<LoginChallengeResponse>>('/auth/login', data);
-    return extractData(res);
-  },
-
-  resendLoginCode: async (email: string) => {
-    const res = await api.post<ApiResponse<ResendLoginCodeResponse>>('/auth/resend-login-code', { email });
-    return extractData(res);
-  },
-
   forgotPassword: async (email: string) => {
     const res = await api.post<ApiResponse<ForgotPasswordResponse>>('/auth/forgot-password', { email });
     return extractData(res);
+  },
+
+  verifyResetCode: async (data: { email: string; code: string }) => {
+    await api.post('/auth/verify-reset-code', data);
+  },
+
+  loginWithResetCode: async (data: { email: string; code: string }) => {
+    const res = await api.post<ApiResponse<LoginResponse>>('/auth/login-with-reset-code', data);
+    const result = extractData(res);
+    if (result.token) localStorage.setItem('auth_token', result.token);
+    return result;
   },
 
   resetPassword: async (data: { email: string; code: string; newPassword: string }) => {

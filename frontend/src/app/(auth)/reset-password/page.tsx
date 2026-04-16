@@ -26,7 +26,6 @@ function ResetPasswordContent() {
   const deliveryMode = searchParams.get('delivery') || fallbackData.delivery || '';
 
   const [code, setCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -92,7 +91,7 @@ function ResetPasswordContent() {
           setResendCooldown(60);
         }
       } catch {
-        setError('Le code de secours n’a pas pu etre recupere automatiquement. Clique sur "Resend".');
+        setError('Le code de secours n a pas pu etre recupere automatiquement. Clique sur "Resend".');
       }
     };
 
@@ -105,22 +104,18 @@ function ResetPasswordContent() {
       setError('Please enter a valid 6-digit code');
       return;
     }
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
 
     setError('');
     setSuccess('');
     setIsLoading(true);
 
     try {
-      await authApi.resetPassword({ email, code, newPassword });
+      await authApi.verifyResetCode({ email, code });
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('reset-password-fallback');
+        sessionStorage.setItem('verified-reset-session', JSON.stringify({ email, code }));
       }
-      setSuccess('Password reset successfully. Redirecting to login...');
-      setTimeout(() => router.push('/login'), 1200);
+      setSuccess('Code verified successfully. Redirecting...');
+      setTimeout(() => router.push(`/reset-password/options?email=${encodeURIComponent(email)}`), 800);
     } catch (err) {
       setError(getErrorMessage(err));
       setIsLoading(false);
@@ -212,17 +207,7 @@ function ResetPasswordContent() {
             className="text-center text-3xl tracking-[0.5em] font-extrabold h-16 bg-surface-100 border-surface-200 focus:bg-card"
             maxLength={6}
             required
-          />
-
-          <Input
-            label="New password"
-            type="password"
-            placeholder="At least 8 characters"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            allowPasswordToggle
-            minLength={8}
-            required
+            disabled={isLoading}
           />
 
           {error && (
@@ -240,7 +225,7 @@ function ResetPasswordContent() {
           )}
 
           <Button type="submit" isLoading={isLoading} className="w-full justify-center h-14 text-lg shadow-lg shadow-brand-500/20">
-            Save new password <ArrowRight className="w-5 h-5 ml-2" />
+            Verify code <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
 
           <div className="text-center pt-2">
@@ -251,7 +236,7 @@ function ResetPasswordContent() {
               className="text-sm font-bold text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               <RefreshCw className={`w-4 h-4 ${isResending ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Didn’t receive code? Resend'}
+              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Didn t receive code? Resend'}
             </button>
           </div>
         </form>

@@ -9,11 +9,7 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{
-    devLoginCode?: string;
-    emailPreviewUrl?: string;
-    deliveredToInbox: boolean;
-  }>;
+  login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<{
     devVerificationCode?: string;
     emailPreviewUrl?: string;
@@ -55,22 +51,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const login = async (email: string, password: string) => {
-    const result = await authApi.login({ email, password });
-
-    storeFallback('verify-login-fallback', {
-      email,
-      devCode: result.devLoginCode,
-      previewUrl: result.emailPreviewUrl,
-      delivery: result.deliveredToInbox ? '' : 'fallback',
-    });
-
-    const params = new URLSearchParams({ email });
-    if (result.devLoginCode) params.set('devCode', result.devLoginCode);
-    if (result.emailPreviewUrl) params.set('previewUrl', result.emailPreviewUrl);
-    if (!result.deliveredToInbox) params.set('delivery', 'fallback');
-
-    router.push(`/verify-login?${params.toString()}`);
-    return result;
+    const { user } = await authApi.login({ email, password });
+    setUser(user);
+    router.push('/dashboard');
   };
 
   const register = async (name: string, email: string, password: string) => {

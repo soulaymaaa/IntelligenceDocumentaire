@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth-context';
 import { Footer } from '@/components/layout/Footer';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const features = [
   {
@@ -44,36 +45,41 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,_rgb(246,250,249),_rgb(255,255,255))] text-slate-900 dark:bg-[linear-gradient(180deg,_rgb(7,20,25),_rgb(5,15,20))] dark:text-slate-100">
       <div className="mx-auto max-w-6xl px-6 py-8 lg:px-10">
-        <header className="flex items-center justify-between rounded-3xl border border-surface-200 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:bg-slate-900/80">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-lg shadow-brand-500/20">
-              <Brain className="h-5 w-5" />
+        <div className="flex items-center justify-between gap-4">
+          <header className="flex flex-1 items-center justify-between rounded-3xl border border-surface-200 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:bg-slate-900/80">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-lg shadow-brand-500/20">
+                <Brain className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-lg font-extrabold tracking-tight">DocIntel</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">OCR  Search  RAG</p>
+              </div>
+            </Link>
+            <div className="flex items-center gap-3">
+              {!isLoading && isAuthenticated ? (
+                <>
+                  <Link href="/dashboard">
+                    <Button>Dashboard</Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button variant="secondary">Connexion</Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button>Commencer</Button>
+                  </Link>
+                </>
+              )}
             </div>
-            <div>
-              <p className="text-lg font-extrabold tracking-tight">DocIntel</p>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">OCR  Search  RAG</p>
-            </div>
-          </Link>
+          </header>
 
-          <div className="flex items-center gap-3">
-            {!isLoading && isAuthenticated ? (
-              <>
-                <Link href="/dashboard">
-                  <Button>Dashboard</Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="secondary">Connexion</Button>
-                </Link>
-                <Link href="/register">
-                  <Button>Commencer</Button>
-                </Link>
-              </>
-            )}
+          <div className="rounded-2xl border border-surface-200 bg-white p-1 shadow-sm dark:bg-slate-900">
+            <ThemeToggle />
           </div>
-        </header>
+        </div>
 
         <section className="py-24 text-center">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[28px] bg-brand-gradient text-white shadow-2xl shadow-brand-500/20">

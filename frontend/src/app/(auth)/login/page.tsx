@@ -132,11 +132,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Demo credentials hint */}
-            <div className="px-4 py-3 rounded-xl bg-brand-500/5 border border-brand-500/20 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-bold">
-              <strong className="text-brand-700 dark:text-brand-400">Demo account:</strong> demo@example.com / Demo1234!
-            </div>
-
             <Button type="submit" isLoading={isLoading} className="w-full justify-center h-12 text-base">
               Continue <ArrowRight className="w-5 h-5 ml-1" />
             </Button>

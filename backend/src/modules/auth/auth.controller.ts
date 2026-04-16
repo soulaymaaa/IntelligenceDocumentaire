@@ -39,7 +39,12 @@ export const register = asyncHandler(async (req: AuthRequest, res: Response, _ne
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
 
+<<<<<<< HEAD
   const { user, token } = await authService.register(parsed.data);
+=======
+  const result = await authService.register(parsed.data);
+  const { user } = result;
+>>>>>>> f5fd521b (update1)
 
   await logAction({
     userId: (user as any)._id?.toString(),
@@ -47,6 +52,7 @@ export const register = asyncHandler(async (req: AuthRequest, res: Response, _ne
     resourceType: 'User',
   });
 
+<<<<<<< HEAD
   // If auto-verify is on, set the cookie and return token
   if (token) {
     res.cookie('token', token, COOKIE_OPTIONS);
@@ -54,6 +60,16 @@ export const register = asyncHandler(async (req: AuthRequest, res: Response, _ne
   }
 
   return successResponse(res, { user }, 'Account created. Please check your email for the verification code.', 201);
+=======
+  return successResponse(
+    res,
+    result,
+    result.deliveredToInbox
+      ? 'Account created. Please check your email for the verification code.'
+      : 'Account created. Email delivery fallback is active in development, so a verification code is provided.',
+    201
+  );
+>>>>>>> f5fd521b (update1)
 });
 
 export const verifyEmail = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
@@ -77,9 +93,15 @@ export const resendVerification = asyncHandler(async (req: AuthRequest, res: Res
   const parsed = resendSchema.safeParse(req.body);
   if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
 
-  await authService.resendOtp(parsed.data.email);
+  const result = await authService.resendOtp(parsed.data.email);
 
-  return successResponse(res, null, 'Verification code resent successfully');
+  return successResponse(
+    res,
+    result,
+    result.deliveredToInbox
+      ? 'Verification code resent successfully'
+      : 'Verification code regenerated. A development fallback code is provided because email delivery is not reaching a real inbox.'
+  );
 });
 
 export const login = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {

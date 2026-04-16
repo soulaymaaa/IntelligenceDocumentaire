@@ -21,11 +21,22 @@ interface AuthResult {
   user: Omit<IUser, 'passwordHash'>;
 }
 
+interface RegisterResult {
+  user: Omit<IUser, 'passwordHash'>;
+  devVerificationCode?: string;
+  emailPreviewUrl?: string;
+  deliveredToInbox: boolean;
+}
+
 const SALT_ROUNDS = 12;
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
+<<<<<<< HEAD
 export const register = async (params: RegisterParams): Promise<{ user: Omit<IUser, 'passwordHash'>; token?: string }> => {
+=======
+export const register = async (params: RegisterParams): Promise<RegisterResult> => {
+>>>>>>> f5fd521b (update1)
   const { name, email, password } = params;
   const normalizedEmail = email.toLowerCase();
 
@@ -49,6 +60,7 @@ export const register = async (params: RegisterParams): Promise<{ user: Omit<IUs
     ...(expiresAt && { verificationCodeExpiresAt: expiresAt }),
   });
 
+<<<<<<< HEAD
   // Only send verification email if not auto-verified
   if (!isVerified) {
     await sendVerificationEmail(normalizedEmail, otp!);
@@ -61,6 +73,16 @@ export const register = async (params: RegisterParams): Promise<{ user: Omit<IUs
   }
 
   return result;
+=======
+  const emailResult = await sendVerificationEmail(normalizedEmail, otp);
+
+  return {
+    user: user.toJSON() as any,
+    deliveredToInbox: emailResult.deliveredToInbox,
+    emailPreviewUrl: emailResult.previewUrl,
+    devVerificationCode: env.NODE_ENV === 'development' ? otp : undefined,
+  };
+>>>>>>> f5fd521b (update1)
 };
 
 export const verifyEmail = async (email: string, code: string): Promise<AuthResult> => {
@@ -87,7 +109,11 @@ export const verifyEmail = async (email: string, code: string): Promise<AuthResu
   return { token, user: user.toJSON() as any };
 };
 
-export const resendOtp = async (email: string): Promise<void> => {
+export const resendOtp = async (email: string): Promise<{
+  devVerificationCode?: string;
+  emailPreviewUrl?: string;
+  deliveredToInbox: boolean;
+}> => {
   const user = await UserModel.findOne({ email: email.toLowerCase() });
   if (!user) throw new BadRequestError('User not found');
   if (user.isVerified) throw new BadRequestError('Email is already verified');
@@ -97,7 +123,13 @@ export const resendOtp = async (email: string): Promise<void> => {
   user.verificationCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
   await user.save();
 
-  await sendVerificationEmail(user.email, otp);
+  const emailResult = await sendVerificationEmail(user.email, otp);
+
+  return {
+    deliveredToInbox: emailResult.deliveredToInbox,
+    emailPreviewUrl: emailResult.previewUrl,
+    devVerificationCode: env.NODE_ENV === 'development' ? otp : undefined,
+  };
 };
 
 export const login = async (params: LoginParams): Promise<AuthResult> => {
