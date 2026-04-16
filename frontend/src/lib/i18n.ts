@@ -21,9 +21,36 @@ export const translations = {
       login: 'Login',
       getStarted: 'Get Started',
       modernPlatform: 'Modern document platform',
+      proofLabel: 'Trusted workflow',
       title: 'Analyze your documents with a simple, clear, and intelligent interface.',
       description:
         'DocIntel centralizes your files, extracts their content, simplifies search, and lets you question your documents with source-backed AI.',
+      heroCards: {
+        library: 'Unified library',
+        libraryDesc: 'All your PDFs, scans, and reports in one searchable space.',
+        ai: 'AI copiloting',
+        aiDesc: 'Summaries, semantic retrieval, and source-grounded answers.',
+        secure: 'Structured control',
+        secureDesc: 'A clean workflow from upload to OCR to verification.',
+      },
+      statLabels: ['OCR ready', 'Semantic retrieval', 'Source-backed answers'],
+      processTitle: 'From raw files to useful answers',
+      processDescription:
+        'A clearer workflow for teams and individuals who want less friction and more signal.',
+      processSteps: [
+        {
+          title: 'Import and organize',
+          description: 'Bring PDFs and scans into one clean workspace.',
+        },
+        {
+          title: 'Extract and index',
+          description: 'Use OCR and indexing to make every file searchable.',
+        },
+        {
+          title: 'Ask and synthesize',
+          description: 'Get summaries and grounded answers with cited passages.',
+        },
+      ],
       openWorkspace: 'Open my workspace',
       myDocuments: 'My documents',
       createAccount: 'Create account',
@@ -123,9 +150,36 @@ export const translations = {
       login: 'Connexion',
       getStarted: 'Commencer',
       modernPlatform: 'Plateforme documentaire moderne',
+      proofLabel: 'Flux de travail fiable',
       title: 'Analyse tes documents avec une interface simple, claire et intelligente.',
       description:
         'DocIntel centralise tes fichiers, extrait leur contenu, facilite la recherche et te permet d interroger tes documents avec une IA sourcee.',
+      heroCards: {
+        library: 'Bibliotheque unifiee',
+        libraryDesc: 'Tous tes PDF, scans et rapports dans un seul espace consultable.',
+        ai: 'Copilote IA',
+        aiDesc: 'Resumes, recherche semantique et reponses appuyees sur les sources.',
+        secure: 'Controle structure',
+        secureDesc: 'Un flux clair de l import jusqu a l OCR et la verification.',
+      },
+      statLabels: ['OCR pret', 'Recherche semantique', 'Reponses avec sources'],
+      processTitle: 'Des fichiers bruts vers des reponses utiles',
+      processDescription:
+        'Un parcours plus clair pour les equipes et les independants qui veulent moins de friction et plus de signal.',
+      processSteps: [
+        {
+          title: 'Importer et organiser',
+          description: 'Regroupe PDF et scans dans un espace de travail propre.',
+        },
+        {
+          title: 'Extraire et indexer',
+          description: 'Utilise l OCR et l indexation pour rendre chaque fichier consultable.',
+        },
+        {
+          title: 'Interroger et synthetiser',
+          description: 'Obtiens des resumes et des reponses fondees sur des passages cites.',
+        },
+      ],
       openWorkspace: 'Ouvrir mon espace',
       myDocuments: 'Mes documents',
       createAccount: 'Creer un compte',
