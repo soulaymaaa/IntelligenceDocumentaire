@@ -8,11 +8,14 @@ import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
 import { getErrorMessage } from '@/lib/utils';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 function NewPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { copy } = useLanguage();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -80,7 +83,8 @@ function NewPasswordContent() {
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
 
-      <div className="absolute top-8 right-8">
+      <div className="absolute top-8 right-8 flex items-center gap-3">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -89,16 +93,16 @@ function NewPasswordContent() {
           <div className="w-20 h-20 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center">
             <KeyRound className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">New password</h1>
+          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.newPasswordTitle}</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-4 text-lg font-medium leading-relaxed">
-            Create a new password for <br />
+            {copy.auth.newPasswordSubtitle} <br />
             <span className="text-slate-900 dark:text-slate-100 font-bold">{email}</span>
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
-            label="New password"
+            label={copy.auth.newPassword}
             type="password"
             placeholder="At least 8 characters"
             value={newPassword}
@@ -108,9 +112,9 @@ function NewPasswordContent() {
           />
 
           <Input
-            label="Confirm password"
+            label={copy.auth.confirmPassword}
             type="password"
-            placeholder="Repeat your new password"
+            placeholder={copy.auth.repeatNewPassword}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             minLength={8}
@@ -132,12 +136,12 @@ function NewPasswordContent() {
           )}
 
           <Button type="submit" isLoading={isLoading} className="w-full justify-center h-14 text-lg shadow-lg shadow-brand-500/20">
-            Save new password <ArrowRight className="w-5 h-5 ml-2" />
+            {copy.auth.saveNewPassword} <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
 
           <div className="pt-4 text-center">
             <Link href={`/reset-password/options?email=${encodeURIComponent(email)}`} className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-              Back to options
+              {copy.auth.backToOptions}
             </Link>
           </div>
         </form>

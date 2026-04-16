@@ -9,12 +9,15 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getErrorMessage } from '@/lib/utils';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
+import { useLanguage } from '@/providers/LanguageProvider';
 import Link from 'next/link';
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { verify } = useAuth();
+  const { copy } = useLanguage();
   const [fallbackData, setFallbackData] = useState({
     email: '',
     devCode: '',
@@ -44,9 +47,7 @@ function VerifyEmailContent() {
   };
 
   useEffect(() => {
-    if (!email) {
-      router.push('/register');
-    }
+    if (!email) router.push('/register');
   }, [email, router]);
 
   useEffect(() => {
@@ -69,9 +70,7 @@ function VerifyEmailContent() {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (resendCooldown > 0) {
-      timer = setInterval(() => {
-        setResendCooldown((prev) => prev - 1);
-      }, 1000);
+      timer = setInterval(() => setResendCooldown((prev) => prev - 1), 1000);
     }
     return () => clearInterval(timer);
   }, [resendCooldown]);
@@ -79,7 +78,6 @@ function VerifyEmailContent() {
   useEffect(() => {
     const recoverMissingDevCode = async () => {
       if (!email || deliveryMode !== 'fallback' || devCode || hasRecoveredFallback) return;
-
       setHasRecoveredFallback(true);
       try {
         const result = await authApi.resendVerification(email);
@@ -101,7 +99,7 @@ function VerifyEmailContent() {
           delivery: result.deliveredToInbox ? '' : 'fallback',
         });
         if (result.devVerificationCode) {
-          setSuccess(`Temporary code recovered automatically: ${result.devVerificationCode}`);
+          setSuccess(`${copy.auth.temporaryCode}: ${result.devVerificationCode}`);
           setResendCooldown(60);
         }
       } catch (err) {
@@ -115,7 +113,7 @@ function VerifyEmailContent() {
     };
 
     recoverMissingDevCode();
-  }, [email, deliveryMode, devCode, hasRecoveredFallback]);
+  }, [email, deliveryMode, devCode, hasRecoveredFallback, copy.auth.temporaryCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +121,6 @@ function VerifyEmailContent() {
       setError('Please enter a valid 6-digit code');
       return;
     }
-
     setError('');
     setIsLoading(true);
     try {
@@ -144,7 +141,6 @@ function VerifyEmailContent() {
 
   const handleResend = async () => {
     if (resendCooldown > 0) return;
-
     setError('');
     setSuccess('');
     setIsResending(true);
@@ -190,7 +186,8 @@ function VerifyEmailContent() {
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl" />
 
-      <div className="absolute top-8 right-8">
+      <div className="absolute top-8 right-8 flex items-center gap-3">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -199,9 +196,9 @@ function VerifyEmailContent() {
           <div className="w-20 h-20 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center">
             <Mail className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Verify email</h1>
+          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.verifyEmailTitle}</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-4 text-lg font-medium leading-relaxed">
-            We&apos;ve sent a 6-digit verification code to <br />
+            {copy.auth.verifyEmailSubtitle} <br />
             <span className="text-slate-900 dark:text-slate-100 font-bold">{email}</span>
           </p>
         </div>
@@ -209,15 +206,15 @@ function VerifyEmailContent() {
         <form onSubmit={handleSubmit} className="space-y-8">
           {deliveryMode === 'fallback' && (
             <div className="px-4 py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm font-bold leading-relaxed">
-              No real email was delivered in this development environment.
+              {copy.auth.noRealEmail}
               {devCode && (
                 <div className="mt-2">
-                  Temporary code: <span className="font-extrabold tracking-[0.2em]">{devCode}</span>
+                  {copy.auth.temporaryCode}: <span className="font-extrabold tracking-[0.2em]">{devCode}</span>
                 </div>
               )}
               {previewUrl && (
                 <div className="mt-2">
-                  Preview email: <a href={previewUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">open test mail</a>
+                  {copy.auth.previewEmail}: <a href={previewUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">{copy.auth.openTestMail}</a>
                 </div>
               )}
             </div>
@@ -226,7 +223,7 @@ function VerifyEmailContent() {
           <div className="space-y-2">
             <Input
               type="text"
-              placeholder="Enter 6-digit code"
+              placeholder={copy.auth.enter6DigitCode}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               className="text-center text-3xl tracking-[0.5em] font-extrabold h-16 bg-surface-100 border-surface-200 focus:bg-card"
@@ -235,26 +232,26 @@ function VerifyEmailContent() {
               autoFocus
             />
             <p className="text-center text-xs text-slate-400 dark:text-slate-500 font-medium">
-              The code will expire in 15 minutes
+              {copy.auth.codeExpires}
             </p>
           </div>
 
           {error && (
-            <div className="px-4 py-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm font-bold flex items-center gap-3 animate-shake">
+            <div className="px-4 py-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm font-bold flex items-center gap-3">
               <AlertCircle className="w-5 h-5 shrink-0" />
               {error}
             </div>
           )}
 
           {success && (
-            <div className="px-4 py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center gap-3 animate-fade-in">
+            <div className="px-4 py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 shrink-0" />
               {success}
             </div>
           )}
 
           <Button type="submit" isLoading={isLoading} className="w-full justify-center h-14 text-lg shadow-lg shadow-brand-500/20">
-            Verify & Continue <ArrowRight className="w-5 h-5 ml-2" />
+            {copy.auth.verifyContinue} <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
 
           <div className="text-center pt-2">
@@ -265,14 +262,14 @@ function VerifyEmailContent() {
               className="text-sm font-bold text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               <RefreshCw className={`w-4 h-4 ${isResending ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Didn\'t receive code? Resend'}
+              {resendCooldown > 0 ? `${copy.auth.resendCodeIn} ${resendCooldown}s` : copy.auth.didntReceiveCode}
             </button>
           </div>
         </form>
 
         <div className="mt-12 pt-8 border-t border-surface-200 text-center">
           <Link href="/register" className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-            Wrong email address? Go back
+            {copy.auth.wrongEmail}
           </Link>
         </div>
       </div>

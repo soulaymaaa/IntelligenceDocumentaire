@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth-context';
 import { Toaster } from '@/components/ui/Toaster';
 
 import { ThemeProvider } from '@/providers/ThemeProvider';
+import { LanguageProvider } from '@/providers/LanguageProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -26,10 +27,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            {children}
+            <Toaster />
+          </AuthProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

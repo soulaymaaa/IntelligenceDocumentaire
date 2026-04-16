@@ -8,10 +8,13 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getErrorMessage } from '@/lib/utils';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const { copy } = useLanguage();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -55,7 +58,8 @@ export default function ForgotPasswordPage() {
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
 
-      <div className="absolute top-8 right-8">
+      <div className="absolute top-8 right-8 flex items-center gap-3">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -64,15 +68,15 @@ export default function ForgotPasswordPage() {
           <div className="w-20 h-20 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center">
             <KeyRound className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Forgot password</h1>
+          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.forgotTitle}</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-4 text-lg font-medium leading-relaxed">
-            Enter your email and we&apos;ll send you a reset code.
+            {copy.auth.forgotSubtitle}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
-            label="Email address"
+            label={copy.auth.emailAddress}
             type="email"
             placeholder="you@example.com"
             value={email}
@@ -94,14 +98,14 @@ export default function ForgotPasswordPage() {
           )}
 
           <Button type="submit" isLoading={isLoading} className="w-full justify-center h-12 text-base">
-            Send reset code <ArrowRight className="w-5 h-5 ml-1" />
+            {copy.auth.sendResetCode} <ArrowRight className="w-5 h-5 ml-1" />
           </Button>
         </form>
 
         <p className="mt-8 text-center text-sm font-bold text-slate-500">
-          Remembered your password?{' '}
+          {copy.auth.rememberedPassword}{' '}
           <Link href="/login" className="text-brand-600 dark:text-brand-400 hover:text-brand-700 font-bold transition-colors">
-            Back to login
+            {copy.common.backToLogin}
           </Link>
         </p>
       </div>

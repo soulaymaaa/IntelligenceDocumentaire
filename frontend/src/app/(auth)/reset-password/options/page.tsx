@@ -7,11 +7,14 @@ import { ArrowRight, CheckCircle2, KeyRound, LogIn, LockKeyhole } from 'lucide-r
 import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
 import { getErrorMessage } from '@/lib/utils';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 function ResetPasswordOptionsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { copy } = useLanguage();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [verifiedSession, setVerifiedSession] = useState({ email: '', code: '' });
@@ -62,7 +65,8 @@ function ResetPasswordOptionsContent() {
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
 
-      <div className="absolute top-8 right-8">
+      <div className="absolute top-8 right-8 flex items-center gap-3">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -71,9 +75,9 @@ function ResetPasswordOptionsContent() {
           <div className="w-20 h-20 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center">
             <KeyRound className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Code verified</h1>
+          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.optionsTitle}</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-4 text-lg font-medium leading-relaxed">
-            Choose what you want to do for <br />
+            {copy.auth.optionsSubtitle} <br />
             <span className="text-slate-900 dark:text-slate-100 font-bold">{email}</span>
           </p>
         </div>
@@ -81,7 +85,7 @@ function ResetPasswordOptionsContent() {
         <div className="space-y-6">
           <div className="px-4 py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 shrink-0" />
-            Your reset code is valid. You can log in directly or create a new password.
+            {copy.auth.optionsSuccess}
           </div>
 
           {error && (
@@ -92,20 +96,20 @@ function ResetPasswordOptionsContent() {
 
           <Button type="button" isLoading={isLoading} onClick={handleLoginNow} className="w-full justify-center h-14 text-lg shadow-lg shadow-brand-500/20">
             <LogIn className="w-5 h-5" />
-            Login without change
+            {copy.auth.loginWithoutChange}
           </Button>
 
           <Link href={`/reset-password/new-password?email=${encodeURIComponent(email)}`} className="block">
             <Button type="button" variant="secondary" className="w-full justify-center h-14 text-lg">
               <LockKeyhole className="w-5 h-5" />
-              New password
+              {copy.auth.newPasswordChoice}
               <ArrowRight className="w-5 h-5" />
             </Button>
           </Link>
 
           <div className="pt-4 text-center">
             <Link href="/login" className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-              Back to login
+              {copy.common.backToLogin}
             </Link>
           </div>
         </div>

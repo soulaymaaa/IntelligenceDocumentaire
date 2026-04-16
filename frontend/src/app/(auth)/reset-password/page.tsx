@@ -9,10 +9,13 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getErrorMessage } from '@/lib/utils';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { copy } = useLanguage();
   const [fallbackData, setFallbackData] = useState({
     email: '',
     devCode: '',
@@ -166,7 +169,8 @@ function ResetPasswordContent() {
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
 
-      <div className="absolute top-8 right-8">
+      <div className="absolute top-8 right-8 flex items-center gap-3">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -175,9 +179,9 @@ function ResetPasswordContent() {
           <div className="w-20 h-20 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center">
             <KeyRound className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Reset password</h1>
+          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.resetTitle}</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-4 text-lg font-medium leading-relaxed">
-            Enter the reset code sent to <br />
+            {copy.auth.resetSubtitle} <br />
             <span className="text-slate-900 dark:text-slate-100 font-bold">{email}</span>
           </p>
         </div>
@@ -185,15 +189,15 @@ function ResetPasswordContent() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {deliveryMode === 'fallback' && (
             <div className="px-4 py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm font-bold leading-relaxed">
-              Aucun vrai email n&apos;a ete distribue dans cet environnement de developpement.
+              {copy.auth.noRealResetEmail}
               {devCode && (
                 <div className="mt-2">
-                  Code temporaire: <span className="font-extrabold tracking-[0.2em]">{devCode}</span>
+                  {copy.auth.temporaryCode}: <span className="font-extrabold tracking-[0.2em]">{devCode}</span>
                 </div>
               )}
               {previewUrl && (
                 <div className="mt-2">
-                  Preview mail: <a href={previewUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">ouvrir le mail de test</a>
+                  {copy.auth.previewEmail}: <a href={previewUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">{copy.auth.openTestMail}</a>
                 </div>
               )}
             </div>
@@ -201,7 +205,7 @@ function ResetPasswordContent() {
 
           <Input
             type="text"
-            placeholder="Enter 6-digit code"
+            placeholder={copy.auth.enter6DigitCode}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             className="text-center text-3xl tracking-[0.5em] font-extrabold h-16 bg-surface-100 border-surface-200 focus:bg-card"
@@ -225,7 +229,7 @@ function ResetPasswordContent() {
           )}
 
           <Button type="submit" isLoading={isLoading} className="w-full justify-center h-14 text-lg shadow-lg shadow-brand-500/20">
-            Verify code <ArrowRight className="w-5 h-5 ml-2" />
+            {copy.auth.verifyCode} <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
 
           <div className="text-center pt-2">
@@ -236,14 +240,14 @@ function ResetPasswordContent() {
               className="text-sm font-bold text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               <RefreshCw className={`w-4 h-4 ${isResending ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Didn t receive code? Resend'}
+              {resendCooldown > 0 ? `${copy.auth.resendCodeIn} ${resendCooldown}s` : copy.auth.didntReceiveCode}
             </button>
           </div>
         </form>
 
         <div className="mt-12 pt-8 border-t border-surface-200 text-center">
           <Link href="/login" className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-            Back to login
+            {copy.common.backToLogin}
           </Link>
         </div>
       </div>

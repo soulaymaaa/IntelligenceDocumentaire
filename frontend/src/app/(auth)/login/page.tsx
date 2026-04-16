@@ -2,22 +2,22 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Mail, Lock, Brain, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getErrorMessage } from '@/lib/utils';
-
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { copy } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<React.ReactNode>('');
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +32,7 @@ export default function LoginPage() {
           <span>
             {msg}.{' '}
             <Link href={`/verify-email?email=${encodeURIComponent(email)}`} className="underline font-bold hover:text-red-800 transition-colors">
-              Verify now
+              {copy.auth.verifyNow}
             </Link>
           </span>
         );
@@ -46,7 +46,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-card flex transition-colors">
-      {/* Left panel — branding */}
       <div className="hidden lg:flex w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden bg-surface-100 border-r border-surface-200">
         <div className="absolute inset-0 bg-brand-gradient opacity-[0.03] dark:opacity-[0.07]" />
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl animate-pulse" />
@@ -57,32 +56,26 @@ export default function LoginPage() {
           </div>
           <h2 className="text-5xl font-extrabold text-slate-900 dark:text-slate-100 mb-6 tracking-tight">DocIntel</h2>
           <p className="text-slate-600 dark:text-slate-400 text-xl max-w-sm font-medium leading-relaxed">
-            Transform your documents with AI-powered OCR, semantic search, and intelligent Q&A.
+            {copy.auth.leftPanelDescription}
           </p>
           <div className="mt-12 grid grid-cols-2 gap-5 text-left">
-            {[
-              { label: 'OCR Extraction',   desc: 'PDF & image text extraction' },
-              { label: 'Semantic Search',  desc: 'Find anything with AI' },
-              { label: 'AI Summaries',     desc: 'Instant document summaries' },
-              { label: 'RAG Answers',      desc: 'Ask questions, get answers' },
-            ].map((f) => (
-              <div key={f.label} className="bg-card rounded-2xl p-4 shadow-sm border border-surface-200/60">
-                <p className="text-slate-900 dark:text-slate-100 text-sm font-bold">{f.label}</p>
-                <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-1 font-medium leading-normal">{f.desc}</p>
+            {copy.auth.leftPanelFeatures.map((feature) => (
+              <div key={feature.label} className="bg-card rounded-2xl p-4 shadow-sm border border-surface-200/60">
+                <p className="text-slate-900 dark:text-slate-100 text-sm font-bold">{feature.label}</p>
+                <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-1 font-medium leading-normal">{feature.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Right panel — form */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-card relative">
-        <div className="absolute top-8 right-8">
+        <div className="absolute top-8 right-8 flex items-center gap-3">
+          <LanguageToggle />
           <ThemeToggle />
         </div>
 
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-12 lg:hidden">
             <div className="w-10 h-10 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg shadow-brand-500/20">
               <Brain className="w-5.5 h-5.5 text-white" />
@@ -91,13 +84,13 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-10">
-          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Welcome back</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg font-medium">Enter your password, then validate the email code to finish signing in</p>
+            <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.loginTitle}</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg font-medium">{copy.auth.loginSubtitle}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <Input
-              label="Email address"
+              label={copy.auth.emailAddress}
               type="email"
               id="email"
               placeholder="you@example.com"
@@ -108,10 +101,10 @@ export default function LoginPage() {
               autoComplete="email"
             />
             <Input
-              label="Password"
+              label={copy.auth.password}
               type="password"
               id="password"
-              placeholder="Your password"
+              placeholder={copy.auth.yourPassword}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               icon={<Lock className="w-4.5 h-4.5" />}
@@ -122,7 +115,7 @@ export default function LoginPage() {
 
             <div className="flex justify-end -mt-2">
               <Link href="/forgot-password" className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:text-brand-700 transition-colors">
-                Forgot password?
+                {copy.auth.forgotPassword}
               </Link>
             </div>
 
@@ -133,14 +126,14 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" isLoading={isLoading} className="w-full justify-center h-12 text-base">
-              Continue <ArrowRight className="w-5 h-5 ml-1" />
+              {copy.common.continue} <ArrowRight className="w-5 h-5 ml-1" />
             </Button>
           </form>
 
           <p className="mt-8 text-center text-sm font-bold text-slate-500">
-            Don&apos;t have an account?{' '}
+            {copy.auth.noAccount}{' '}
             <Link href="/register" className="text-brand-600 dark:text-brand-400 hover:text-brand-700 font-bold transition-colors">
-              Create one
+              {copy.auth.createOne}
             </Link>
           </p>
         </div>
