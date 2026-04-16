@@ -31,38 +31,57 @@ export default function HomePage() {
   return (
     <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.14),_transparent_28%),linear-gradient(180deg,_rgb(246,250,249),_rgb(255,255,255))] text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.10),_transparent_24%),linear-gradient(180deg,_rgb(7,20,25),_rgb(5,15,20))] dark:text-slate-100">
       <div className="mx-auto max-w-6xl px-6 py-8 lg:px-10">
-        <div className="flex items-center justify-between gap-4">
-          <header className="flex flex-1 items-center justify-between rounded-3xl border border-surface-200 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:bg-slate-900/80">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-lg shadow-brand-500/20">
-                <Brain className="h-5 w-5" />
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <header className="flex flex-1 flex-col gap-4 rounded-[30px] border border-surface-200 bg-white/86 px-5 py-5 shadow-[0_18px_38px_-26px_rgba(15,118,110,0.24)] backdrop-blur md:px-6 xl:flex-row xl:items-center xl:justify-between xl:py-4 dark:bg-slate-900/86">
+            <Link href="/" className="flex items-center gap-4">
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-[22px] bg-brand-gradient text-white shadow-[0_14px_30px_-12px_rgba(8,145,178,0.55)]">
+                <div className="absolute inset-0 rounded-[22px] bg-white/10" />
+                <Brain className="relative h-6 w-6" />
               </div>
-              <div>
-                <p className="text-lg font-extrabold tracking-tight">DocIntel</p>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">{copy.common.brandTagline}</p>
+
+              <div className="min-w-0">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-brand-600/80 dark:text-brand-300/80">
+                  {copy.home.proofLabel}
+                </p>
+                <p className="mt-1 text-[1.7rem] font-extrabold leading-none tracking-tight text-slate-900 dark:text-slate-100">
+                  DocIntel
+                </p>
+                <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                  {copy.common.brandTagline}
+                </p>
               </div>
             </Link>
-            <div className="flex items-center gap-3">
+
+            <div className="flex flex-wrap items-center gap-2.5">
               {!isLoading && isAuthenticated ? (
                 <Link href="/dashboard">
-                  <Button>{copy.common.dashboard}</Button>
+                  <Button className="min-w-[170px] justify-center shadow-[0_10px_24px_-14px_rgba(8,145,178,0.65)]">
+                    {copy.common.dashboard}
+                  </Button>
                 </Link>
               ) : (
                 <>
                   <Link href="/login">
-                    <Button variant="secondary">{copy.home.login}</Button>
+                    <Button variant="secondary" className="min-w-[108px] justify-center bg-white/80 dark:bg-slate-900">
+                      {copy.home.login}
+                    </Button>
                   </Link>
                   <Link href="/register">
-                    <Button>{copy.home.getStarted}</Button>
+                    <Button className="min-w-[148px] justify-center shadow-[0_12px_26px_-14px_rgba(8,145,178,0.72)]">
+                      {copy.home.getStarted}
+                    </Button>
                   </Link>
                 </>
               )}
             </div>
           </header>
 
-          <div className="flex items-center gap-3 rounded-2xl border border-surface-200 bg-white p-1 shadow-sm dark:bg-slate-900">
-            <LanguageToggle />
-            <ThemeToggle />
+          <div className="flex items-center justify-end">
+            <div className="flex items-center gap-2 rounded-[24px] border border-surface-200 bg-white/92 p-1.5 shadow-[0_16px_30px_-24px_rgba(15,118,110,0.18)] backdrop-blur dark:bg-slate-900/92">
+              <LanguageToggle />
+              <div className="h-8 w-px bg-surface-200" />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
 

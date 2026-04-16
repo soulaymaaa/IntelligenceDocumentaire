@@ -22,6 +22,9 @@ export const translations = {
       getStarted: 'Get Started',
       modernPlatform: 'Modern document platform',
       proofLabel: 'Trusted workflow',
+      navCaption: 'Document intelligence workspace',
+      navStatus: 'Live platform',
+      navStatusDetail: 'OCR, semantic retrieval, and AI answers in one flow',
       title: 'Analyze your documents with a simple, clear, and intelligent interface.',
       description:
         'DocIntel centralizes your files, extracts their content, simplifies search, and lets you question your documents with source-backed AI.',
@@ -151,6 +154,9 @@ export const translations = {
       getStarted: 'Commencer',
       modernPlatform: 'Plateforme documentaire moderne',
       proofLabel: 'Flux de travail fiable',
+      navCaption: 'Espace de travail documentaire intelligent',
+      navStatus: 'Plateforme active',
+      navStatusDetail: 'OCR, recherche semantique et reponses IA dans un seul flux',
       title: 'Analyse tes documents avec une interface simple, claire et intelligente.',
       description:
         'DocIntel centralise tes fichiers, extrait leur contenu, facilite la recherche et te permet d interroger tes documents avec une IA sourcee.',
