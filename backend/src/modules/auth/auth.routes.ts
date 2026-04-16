@@ -9,6 +9,11 @@ router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
 router.post('/verify-email', authLimiter, authController.verifyEmail);
 router.post('/resend-verification', authLimiter, authController.resendVerification);
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+router.post('/verify-reset-code', authLimiter, authController.verifyResetCode);
+router.post('/login-with-reset-code', authLimiter, authController.loginWithResetCode);
+router.post('/reset-password', authLimiter, authController.resetPassword);
+router.post('/change-password', authenticate, authController.changePassword);
 router.post('/logout', authController.logout);
 router.get('/me', authenticate, authController.getMe);
 

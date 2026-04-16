@@ -7,55 +7,69 @@ export interface VerificationEmailResult {
   previewUrl?: string;
 }
 
-export const sendVerificationEmail = async (to: string, code: string): Promise<VerificationEmailResult> => {
-  try {
-    let transportConfig: any = {
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_PORT === 465,
+const buildTransport = async () => {
+  let transportConfig: any = {
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_PORT === 465,
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  };
+
+  if (env.SMTP_USER === 'votre.email@gmail.com' || (env.NODE_ENV === 'development' && !env.SMTP_USER)) {
+    logger.info('Using Ethereal fallback for email delivery...');
+    const testAccount = await nodemailer.createTestAccount();
+    transportConfig = {
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
       auth: {
-        user: env.SMTP_USER,
-        pass: env.SMTP_PASS,
+        user: testAccount.user,
+        pass: testAccount.pass,
       },
     };
+  }
 
-    // Auto-fallback to Ethereal if using defaults or in development without real SMTP
-    if (env.SMTP_USER === 'votre.email@gmail.com' || env.NODE_ENV === 'development' && !env.SMTP_USER) {
-      logger.info('Using Ethereal fallback for email verification...');
-      const testAccount = await nodemailer.createTestAccount();
-      transportConfig = {
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-      };
-    }
+  return {
+    transportConfig,
+    transporter: nodemailer.createTransport(transportConfig),
+  };
+};
 
-    const transporter = nodemailer.createTransport(transportConfig);
+const sendCodeEmail = async (
+  to: string,
+  code: string,
+  content: {
+    subject: string;
+    heading: string;
+    intro: string;
+    expiryNote: string;
+  }
+): Promise<VerificationEmailResult> => {
+  try {
+    const { transportConfig, transporter } = await buildTransport();
 
     const info = await transporter.sendMail({
       from: env.SMTP_FROM || transportConfig.auth.user,
       to,
-      subject: 'Vérifiez votre adresse email',
-      text: `Bienvenue ! Votre code de vérification est : ${code}. Ce code expirera dans 15 minutes.`,
+      subject: content.subject,
+      text: `${content.heading}\n\n${content.intro}\n\nCode: ${code}\n\n${content.expiryNote}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Bienvenue sur Intelligence Documentaire !</h2>
-          <p>Merci de vous être inscrit(e). Pour finaliser la création de votre compte, veuillez entrer le code de vérification suivant :</p>
+          <h2>${content.heading}</h2>
+          <p>${content.intro}</p>
           <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
             ${code}
           </div>
-          <p><em>Attention : Ce code expirera dans 15 minutes.</em></p>
-          <p>Si vous n'avez pas demandé cette inscription, vous pouvez ignorer cet email.</p>
+          <p><em>${content.expiryNote}</em></p>
         </div>
       `,
     });
 
-    logger.info(`Verification email sent to ${to}. Code: ${code}`);
-    
+    logger.info(`Code email sent to ${to}. Code: ${code}`);
+
     const previewUrl = nodemailer.getTestMessageUrl(info as any);
     if (previewUrl) {
       logger.info(`Preview URL (Ethereal): ${previewUrl}`);
@@ -66,14 +80,71 @@ export const sendVerificationEmail = async (to: string, code: string): Promise<V
       previewUrl: previewUrl || undefined,
     };
   } catch (error) {
-    logger.error('Failed to send verification email:', error);
-    // Log the code anyway so the user can verify in dev even if email fails
-    logger.info(`Verification Code for ${to}: ${code}`);
+    logger.error('Failed to send code email:', error);
+    logger.info(`Code for ${to}: ${code}`);
+
     if (env.NODE_ENV === 'production') {
-      throw new Error('Failed to send verification email');
+      throw new Error('Failed to send email');
     }
+
     return {
       deliveredToInbox: false,
     };
   }
 };
+
+export const sendPasswordChangedEmail = async (to: string): Promise<VerificationEmailResult> => {
+  try {
+    const { transportConfig, transporter } = await buildTransport();
+
+    const info = await transporter.sendMail({
+      from: env.SMTP_FROM || transportConfig.auth.user,
+      to,
+      subject: 'Your password has been changed',
+      text: 'Hello,\n\nYour DocIntel account password has just been changed.\nIf this was not you, please secure your account immediately.',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Password changed</h2>
+          <p>Your DocIntel account password has just been changed.</p>
+          <p>If this was not you, please secure your account immediately.</p>
+        </div>
+      `,
+    });
+
+    const previewUrl = nodemailer.getTestMessageUrl(info as any);
+    if (previewUrl) {
+      logger.info(`Preview URL (Ethereal): ${previewUrl}`);
+    }
+
+    return {
+      deliveredToInbox: !previewUrl,
+      previewUrl: previewUrl || undefined,
+    };
+  } catch (error) {
+    logger.error('Failed to send password change notification:', error);
+
+    if (env.NODE_ENV === 'production') {
+      throw new Error('Failed to send password change notification email');
+    }
+
+    return {
+      deliveredToInbox: false,
+    };
+  }
+};
+
+export const sendVerificationEmail = async (to: string, code: string): Promise<VerificationEmailResult> =>
+  sendCodeEmail(to, code, {
+    subject: 'Verify your email address',
+    heading: 'Welcome to Intelligence Documentaire',
+    intro: 'Use the verification code below to activate your account:',
+    expiryNote: 'This code expires in 15 minutes.',
+  });
+
+export const sendPasswordResetEmail = async (to: string, code: string): Promise<VerificationEmailResult> =>
+  sendCodeEmail(to, code, {
+    subject: 'Reset your password',
+    heading: 'Password reset request',
+    intro: 'Use the code below to continue resetting your password:',
+    expiryNote: 'This code expires in 15 minutes.',
+  });

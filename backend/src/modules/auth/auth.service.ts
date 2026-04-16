@@ -3,7 +3,11 @@ import jwt from 'jsonwebtoken';
 import { UserModel, IUser } from '../users/user.model';
 import { env } from '../../config/env';
 import { ConflictError, UnauthorizedError, BadRequestError } from '../../utils/errors';
-import { sendVerificationEmail } from '../../utils/email';
+import {
+  sendPasswordChangedEmail,
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from '../../utils/email';
 
 interface RegisterParams {
   name: string;
@@ -23,20 +27,37 @@ interface AuthResult {
 
 interface RegisterResult {
   user: Omit<IUser, 'passwordHash'>;
+  token?: string;
   devVerificationCode?: string;
   emailPreviewUrl?: string;
   deliveredToInbox: boolean;
 }
 
+interface ForgotPasswordResult {
+  devResetCode?: string;
+  emailPreviewUrl?: string;
+  deliveredToInbox: boolean;
+}
+
 const SALT_ROUNDS = 12;
+const PASSWORD_HISTORY_LIMIT = 5;
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-<<<<<<< HEAD
-export const register = async (params: RegisterParams): Promise<{ user: Omit<IUser, 'passwordHash'>; token?: string }> => {
-=======
+const hasUsedPasswordBefore = async (password: string, hashes: string[]): Promise<boolean> => {
+  for (const hash of hashes) {
+    if (await bcrypt.compare(password, hash)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const buildUpdatedPasswordHistory = (currentHash: string, passwordHistory: string[] = []): string[] => {
+  return [currentHash, ...passwordHistory].slice(0, PASSWORD_HISTORY_LIMIT);
+};
+
 export const register = async (params: RegisterParams): Promise<RegisterResult> => {
->>>>>>> f5fd521b (update1)
   const { name, email, password } = params;
   const normalizedEmail = email.toLowerCase();
 
@@ -44,8 +65,6 @@ export const register = async (params: RegisterParams): Promise<RegisterResult> 
   if (existing) throw new ConflictError('An account with this email already exists');
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-  // Auto-verify in dev when AUTO_VERIFY=true
   const isVerified = env.AUTO_VERIFY;
   const otp = isVerified ? undefined : generateOtp();
   const expiresAt = isVerified ? undefined : new Date(Date.now() + 15 * 60 * 1000);
@@ -54,27 +73,22 @@ export const register = async (params: RegisterParams): Promise<RegisterResult> 
     name,
     email: normalizedEmail,
     passwordHash,
+    passwordHistory: [],
     role: 'user',
     isVerified,
     ...(otp && { verificationCode: otp }),
     ...(expiresAt && { verificationCodeExpiresAt: expiresAt }),
   });
 
-<<<<<<< HEAD
-  // Only send verification email if not auto-verified
-  if (!isVerified) {
-    await sendVerificationEmail(normalizedEmail, otp!);
-  }
-
-  // If auto-verified, return token immediately
-  const result: { user: Omit<IUser, 'passwordHash'>; token?: string } = { user: user.toJSON() as any };
   if (isVerified) {
-    result.token = signToken(user._id.toString(), user.role);
+    return {
+      user: user.toJSON() as any,
+      token: signToken(user._id.toString(), user.role),
+      deliveredToInbox: true,
+    };
   }
 
-  return result;
-=======
-  const emailResult = await sendVerificationEmail(normalizedEmail, otp);
+  const emailResult = await sendVerificationEmail(normalizedEmail, otp!);
 
   return {
     user: user.toJSON() as any,
@@ -82,7 +96,6 @@ export const register = async (params: RegisterParams): Promise<RegisterResult> 
     emailPreviewUrl: emailResult.previewUrl,
     devVerificationCode: env.NODE_ENV === 'development' ? otp : undefined,
   };
->>>>>>> f5fd521b (update1)
 };
 
 export const verifyEmail = async (email: string, code: string): Promise<AuthResult> => {
@@ -130,6 +143,109 @@ export const resendOtp = async (email: string): Promise<{
     emailPreviewUrl: emailResult.previewUrl,
     devVerificationCode: env.NODE_ENV === 'development' ? otp : undefined,
   };
+};
+
+export const forgotPassword = async (email: string): Promise<ForgotPasswordResult> => {
+  const normalizedEmail = email.toLowerCase();
+  const user = await UserModel.findOne({ email: normalizedEmail });
+  if (!user) throw new BadRequestError('User not found');
+
+  const otp = generateOtp();
+  user.resetPasswordCode = otp;
+  user.resetPasswordCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  await user.save();
+
+  const emailResult = await sendPasswordResetEmail(user.email, otp);
+
+  return {
+    deliveredToInbox: emailResult.deliveredToInbox,
+    emailPreviewUrl: emailResult.previewUrl,
+    devResetCode: env.NODE_ENV === 'development' ? otp : undefined,
+  };
+};
+
+export const verifyResetCode = async (email: string, code: string): Promise<void> => {
+  const user = await UserModel.findOne({ email: email.toLowerCase() })
+    .select('+resetPasswordCode +resetPasswordCodeExpiresAt');
+
+  if (!user) throw new BadRequestError('User not found');
+
+  if (!user.resetPasswordCode || user.resetPasswordCode !== code) {
+    throw new BadRequestError('Invalid reset code');
+  }
+
+  if (!user.resetPasswordCodeExpiresAt || user.resetPasswordCodeExpiresAt < new Date()) {
+    throw new BadRequestError('Reset code has expired');
+  }
+};
+
+export const loginWithResetCode = async (email: string, code: string): Promise<AuthResult> => {
+  const user = await UserModel.findOne({ email: email.toLowerCase() })
+    .select('+resetPasswordCode +resetPasswordCodeExpiresAt');
+
+  if (!user) throw new BadRequestError('User not found');
+
+  if (!user.resetPasswordCode || user.resetPasswordCode !== code) {
+    throw new BadRequestError('Invalid reset code');
+  }
+
+  if (!user.resetPasswordCodeExpiresAt || user.resetPasswordCodeExpiresAt < new Date()) {
+    throw new BadRequestError('Reset code has expired');
+  }
+
+  const token = signToken(user._id.toString(), user.role);
+  return { token, user: user.toJSON() as any };
+};
+
+export const resetPassword = async (email: string, code: string, newPassword: string): Promise<void> => {
+  const user = await UserModel.findOne({ email: email.toLowerCase() })
+    .select('+passwordHash +passwordHistory +resetPasswordCode +resetPasswordCodeExpiresAt');
+
+  if (!user) throw new BadRequestError('User not found');
+
+  if (!user.resetPasswordCode || user.resetPasswordCode !== code) {
+    throw new BadRequestError('Invalid reset code');
+  }
+
+  if (!user.resetPasswordCodeExpiresAt || user.resetPasswordCodeExpiresAt < new Date()) {
+    throw new BadRequestError('Reset code has expired');
+  }
+
+  const usedBefore = await hasUsedPasswordBefore(newPassword, [
+    user.passwordHash,
+    ...(user.passwordHistory || []),
+  ]);
+  if (usedBefore) {
+    throw new BadRequestError('Please choose a password you have not used before');
+  }
+
+  user.passwordHistory = buildUpdatedPasswordHistory(user.passwordHash, user.passwordHistory || []);
+  user.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  user.resetPasswordCode = undefined;
+  user.resetPasswordCodeExpiresAt = undefined;
+  await user.save();
+  await sendPasswordChangedEmail(user.email);
+};
+
+export const changePassword = async (userId: string, currentPassword: string, newPassword: string): Promise<void> => {
+  const user = await UserModel.findById(userId).select('+passwordHash +passwordHistory');
+  if (!user) throw new UnauthorizedError('User not found');
+
+  const isCurrentMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!isCurrentMatch) throw new BadRequestError('Current password is incorrect');
+
+  const usedBefore = await hasUsedPasswordBefore(newPassword, [
+    user.passwordHash,
+    ...(user.passwordHistory || []),
+  ]);
+  if (usedBefore) {
+    throw new BadRequestError('Please choose a password you have not used before');
+  }
+
+  user.passwordHistory = buildUpdatedPasswordHistory(user.passwordHash, user.passwordHistory || []);
+  user.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await user.save();
+  await sendPasswordChangedEmail(user.email);
 };
 
 export const login = async (params: LoginParams): Promise<AuthResult> => {

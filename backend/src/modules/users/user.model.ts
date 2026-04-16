@@ -4,10 +4,13 @@ export interface IUser extends Document {
   name: string;
   email: string;
   passwordHash: string;
+  passwordHistory: string[];
   role: 'user' | 'admin';
   isVerified: boolean;
   verificationCode?: string;
   verificationCodeExpiresAt?: Date;
+  resetPasswordCode?: string;
+  resetPasswordCodeExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +37,11 @@ const userSchema = new Schema<IUser>(
       required: true,
       select: false, // never returned by default
     },
+    passwordHistory: {
+      type: [String],
+      default: [],
+      select: false,
+    },
     role: {
       type: String,
       enum: ['user', 'admin'],
@@ -48,6 +56,14 @@ const userSchema = new Schema<IUser>(
       select: false,
     },
     verificationCodeExpiresAt: {
+      type: Date,
+      select: false,
+    },
+    resetPasswordCode: {
+      type: String,
+      select: false,
+    },
+    resetPasswordCodeExpiresAt: {
       type: Date,
       select: false,
     },
