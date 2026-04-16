@@ -24,7 +24,7 @@ export const Sidebar = () => {
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-surface-200 flex flex-col z-30 transition-colors">
       <div className="px-6 py-5 border-b border-surface-200">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
+        <Link href="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center shadow-lg shadow-brand-500/20 group-hover:shadow-brand-500/30 transition-all">
             <Brain className="w-5.5 h-5.5 text-white" />
           </div>

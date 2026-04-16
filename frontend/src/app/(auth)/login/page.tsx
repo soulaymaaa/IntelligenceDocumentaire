@@ -51,10 +51,12 @@ export default function LoginPage() {
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="relative text-center">
-          <div className="w-24 h-24 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center">
-            <Brain className="w-12 h-12 text-white" />
-          </div>
-          <h2 className="text-5xl font-extrabold text-slate-900 dark:text-slate-100 mb-6 tracking-tight">DocIntel</h2>
+          <Link href="/" className="inline-block group">
+            <div className="w-24 h-24 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center transition-transform duration-200 group-hover:scale-[1.02]">
+              <Brain className="w-12 h-12 text-white" />
+            </div>
+            <h2 className="text-5xl font-extrabold text-slate-900 dark:text-slate-100 mb-6 tracking-tight">DocIntel</h2>
+          </Link>
           <p className="text-slate-600 dark:text-slate-400 text-xl max-w-sm font-medium leading-relaxed">
             {copy.auth.leftPanelDescription}
           </p>
@@ -76,12 +78,12 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-md">
-          <div className="flex items-center gap-3 mb-12 lg:hidden">
-            <div className="w-10 h-10 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <Link href="/" className="mb-12 flex items-center gap-3 lg:hidden group">
+            <div className="w-10 h-10 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg shadow-brand-500/20 transition-transform duration-200 group-hover:scale-[1.03]">
               <Brain className="w-5.5 h-5.5 text-white" />
             </div>
             <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-700 to-brand-500">DocIntel</span>
-          </div>
+          </Link>
 
           <div className="mb-10">
             <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.loginTitle}</h1>

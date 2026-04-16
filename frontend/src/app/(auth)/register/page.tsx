@@ -48,15 +48,15 @@ export default function RegisterPage() {
       </div>
 
       <div className="w-full max-w-md relative">
-        <div className="flex items-center gap-3 mb-12">
-          <div className="w-12 h-12 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg shadow-brand-500/20">
+        <Link href="/" className="mb-12 flex items-center gap-3 group">
+          <div className="w-12 h-12 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg shadow-brand-500/20 transition-transform duration-200 group-hover:scale-[1.03]">
             <Brain className="w-6 h-6 text-white" />
           </div>
           <div>
             <span className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-brand-700 to-brand-500 tracking-tight">DocIntel</span>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{copy.auth.registerKicker}</p>
           </div>
-        </div>
+        </Link>
 
         <div className="mb-10">
           <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.registerTitle}</h1>
