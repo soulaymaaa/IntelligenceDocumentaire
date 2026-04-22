@@ -91,7 +91,7 @@ export default function HomePage() {
               <ThemeToggle />
             </div>
           </div>
-        </header>
+        </div>
 
         <section className="relative z-10 grid gap-12 pt-14 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:pt-16">
           <div className="max-w-[720px] pt-2">

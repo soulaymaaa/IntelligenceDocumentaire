@@ -115,7 +115,7 @@ export default function RegisterPage() {
         <p className="mt-8 text-center text-sm font-bold text-slate-500">
           {copy.auth.alreadyHaveAccount}{' '}
           <Link href="/login" className="text-brand-600 dark:text-brand-400 hover:text-brand-700 font-bold transition-colors">
-            {copy.home.signIn}
+            {copy.auth.signIn}
           </Link>
         </p>
       </div>
