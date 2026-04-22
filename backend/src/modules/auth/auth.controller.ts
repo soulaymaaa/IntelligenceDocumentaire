@@ -45,6 +45,11 @@ const resetPasswordSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
 
+const verifyResetCodeSchema = z.object({
+  email: z.string().email(),
+  code: z.string().length(6),
+});
+
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8).max(128),
@@ -126,7 +131,7 @@ export const forgotPassword = asyncHandler(async (req: AuthRequest, res: Respons
 });
 
 export const verifyResetCode = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
-  const parsed = verifySchema.safeParse(req.body);
+  const parsed = verifyResetCodeSchema.safeParse(req.body);
   if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
 
   await authService.verifyResetCode(parsed.data.email, parsed.data.code);
@@ -134,7 +139,7 @@ export const verifyResetCode = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const loginWithResetCode = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
-  const parsed = verifySchema.safeParse(req.body);
+  const parsed = verifyResetCodeSchema.safeParse(req.body);
   if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
 
   const { token, user } = await authService.loginWithResetCode(parsed.data.email, parsed.data.code);

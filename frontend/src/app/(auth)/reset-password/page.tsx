@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, ArrowRight, CheckCircle2, KeyRound, RefreshCw } from 'lucide-react';
 import { authApi } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getErrorMessage } from '@/lib/utils';
@@ -14,6 +15,7 @@ import { useLanguage } from '@/providers/LanguageProvider';
 
 function ResetPasswordContent() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const searchParams = useSearchParams();
   const { copy } = useLanguage();
   const [fallbackData, setFallbackData] = useState({
@@ -22,12 +24,6 @@ function ResetPasswordContent() {
     previewUrl: '',
     delivery: '',
   });
-
-  const email = searchParams.get('email') || fallbackData.email || '';
-  const devCode = searchParams.get('devCode') || fallbackData.devCode || '';
-  const previewUrl = searchParams.get('previewUrl') || fallbackData.previewUrl || '';
-  const deliveryMode = searchParams.get('delivery') || fallbackData.delivery || '';
-
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -35,6 +31,11 @@ function ResetPasswordContent() {
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [hasRecoveredFallback, setHasRecoveredFallback] = useState(false);
+
+  const email = searchParams.get('email') || fallbackData.email || '';
+  const devCode = searchParams.get('devCode') || fallbackData.devCode || '';
+  const previewUrl = searchParams.get('previewUrl') || fallbackData.previewUrl || '';
+  const deliveryMode = searchParams.get('delivery') || fallbackData.delivery || '';
 
   useEffect(() => {
     if (!email) router.push('/forgot-password');
@@ -101,7 +102,7 @@ function ResetPasswordContent() {
     recoverMissingDevCode();
   }, [email, deliveryMode, devCode, hasRecoveredFallback]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length !== 6) {
       setError('Please enter a valid 6-digit code');
@@ -153,7 +154,7 @@ function ResetPasswordContent() {
       });
       setSuccess(
         result.deliveredToInbox
-          ? 'A new reset code has been sent to your email.'
+          ? 'A new verification code has been sent to your email.'
           : `Email delivery fallback active in development. Your new reset code is: ${result.devResetCode || 'check backend logs'}.`
       );
       setResendCooldown(60);
@@ -174,30 +175,35 @@ function ResetPasswordContent() {
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-md relative">
-        <div className="text-center mb-10">
-          <div className="w-20 h-20 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center">
-            <KeyRound className="w-10 h-10 text-white" />
+      <div className="relative w-full max-w-md">
+        <div className="mb-10 text-center">
+          <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20">
+            <KeyRound className="h-10 w-10 text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.auth.resetTitle}</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-4 text-lg font-medium leading-relaxed">
-            {copy.auth.resetSubtitle} <br />
-            <span className="text-slate-900 dark:text-slate-100 font-bold">{email}</span>
+          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+            Verify reset code
+          </h1>
+          <p className="mt-4 text-lg font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+            Enter the code sent to <br />
+            <span className="font-bold text-slate-900 dark:text-slate-100">{email}</span>
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleVerifyCode} className="space-y-6">
           {deliveryMode === 'fallback' && (
-            <div className="px-4 py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm font-bold leading-relaxed">
-              {copy.auth.noRealResetEmail}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm font-bold leading-relaxed text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+              Aucun vrai email n&apos;a ete distribue dans cet environnement de developpement.
               {devCode && (
                 <div className="mt-2">
-                  {copy.auth.temporaryCode}: <span className="font-extrabold tracking-[0.2em]">{devCode}</span>
+                  Code temporaire: <span className="font-extrabold tracking-[0.2em]">{devCode}</span>
                 </div>
               )}
               {previewUrl && (
                 <div className="mt-2">
-                  {copy.auth.previewEmail}: <a href={previewUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">{copy.auth.openTestMail}</a>
+                  Preview mail:{' '}
+                  <a href={previewUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+                    ouvrir le mail de test
+                  </a>
                 </div>
               )}
             </div>
@@ -209,45 +215,49 @@ function ResetPasswordContent() {
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             className="text-center text-3xl tracking-[0.5em] font-extrabold h-16 bg-surface-100 border-surface-200 focus:bg-card"
-            maxLength={6}
             required
-            disabled={isLoading}
+            maxLength={6}
+            autoFocus
           />
 
+          <p className="text-center text-xs font-medium text-slate-400 dark:text-slate-500">
+            {copy.auth.codeExpires}
+          </p>
+
           {error && (
-            <div className="px-4 py-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm font-bold flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 shrink-0" />
+            <div className="flex items-center gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-4 text-sm font-bold text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+              <AlertCircle className="h-5 w-5 shrink-0" />
               {error}
             </div>
           )}
 
           {success && (
-            <div className="px-4 py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 shrink-0" />
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 text-sm font-bold text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
+              <CheckCircle2 className="h-5 w-5 shrink-0" />
               {success}
             </div>
           )}
 
-          <Button type="submit" isLoading={isLoading} className="w-full justify-center h-14 text-lg shadow-lg shadow-brand-500/20">
-            {copy.auth.verifyCode} <ArrowRight className="w-5 h-5 ml-2" />
+          <Button type="submit" isLoading={isLoading} className="h-14 w-full justify-center text-lg shadow-lg shadow-brand-500/20">
+            Verify code <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
 
-          <div className="text-center pt-2">
+          <div className="pt-2 text-center">
             <button
               type="button"
               onClick={handleResend}
               disabled={isResending || resendCooldown > 0}
-              className="text-sm font-bold text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="group inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition-colors hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-brand-400"
             >
-              <RefreshCw className={`w-4 h-4 ${isResending ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-              {resendCooldown > 0 ? `${copy.auth.resendCodeIn} ${resendCooldown}s` : copy.auth.didntReceiveCode}
+              <RefreshCw className={`h-4 w-4 ${isResending ? 'animate-spin' : 'transition-transform duration-500 group-hover:rotate-180'}`} />
+              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Didn't receive code? Resend"}
             </button>
           </div>
         </form>
 
-        <div className="mt-12 pt-8 border-t border-surface-200 text-center">
-          <Link href="/login" className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-            {copy.common.backToLogin}
+        <div className="mt-12 border-t border-surface-200 pt-8 text-center">
+          <Link href="/login" className="text-sm font-bold text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300">
+            Back to login
           </Link>
         </div>
       </div>

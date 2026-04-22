@@ -111,6 +111,8 @@ export const sendPasswordChangedEmail = async (to: string): Promise<Verification
       `,
     });
 
+    logger.info(`Password change notification sent to ${to}`);
+
     const previewUrl = nodemailer.getTestMessageUrl(info as any);
     if (previewUrl) {
       logger.info(`Preview URL (Ethereal): ${previewUrl}`);
