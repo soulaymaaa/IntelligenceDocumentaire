@@ -49,8 +49,16 @@ export default function RegisterPage() {
       </div>
 
       <div className="w-full max-w-md relative">
-        <Link href="/" className="mb-12 flex items-center gap-3 group">
+        <Link href="/" className="mb-12 inline-flex items-center gap-3 group">
           <LogoMark className="h-auto w-[64px] max-w-full transition-transform duration-200 group-hover:scale-[1.03]" />
+          <div className="min-w-0 leading-tight">
+            <span className="block text-[28px] font-extrabold tracking-[-0.06em] text-brand-600 dark:text-cyan-300">
+              DocIntel
+            </span>
+            <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+              Rejoindre la plateforme
+            </span>
+          </div>
         </Link>
 
         <div className="mb-10">

@@ -52,8 +52,11 @@ export default function LoginPage() {
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="relative text-center">
-          <Link href="/" className="inline-block group">
-            <LogoMark className="h-auto w-[72px] max-w-full mx-auto mb-8" />
+          <Link href="/" className="inline-flex flex-col items-center group">
+            <LogoMark className="h-auto w-[72px] max-w-full mx-auto" />
+            <span className="mt-2 text-[28px] font-extrabold tracking-[-0.06em] text-slate-900 dark:text-slate-100">
+              DocIntel
+            </span>
           </Link>
           <p className="text-slate-600 dark:text-slate-400 text-xl max-w-sm font-medium leading-relaxed">
             {copy.auth.leftPanelDescription}
@@ -76,8 +79,11 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-md">
-          <Link href="/" className="mb-12 flex items-center gap-3 lg:hidden group">
+          <Link href="/" className="mb-12 inline-flex flex-col items-center gap-2 lg:hidden group">
             <LogoMark className="h-auto w-[60px] max-w-full transition-transform duration-200 group-hover:scale-[1.03]" />
+            <span className="text-[24px] font-extrabold tracking-[-0.06em] text-slate-900 dark:text-slate-100">
+              DocIntel
+            </span>
           </Link>
 
           <div className="mb-10">
