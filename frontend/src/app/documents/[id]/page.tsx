@@ -8,6 +8,7 @@ import {
   Archive,
   ArrowLeft,
   BookOpen,
+  AlertTriangle,
   ExternalLink,
   FileSearch,
   FileText,
@@ -43,7 +44,7 @@ export default function DocumentDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
-  const { data: doc, isLoading } = useQuery<Document>({
+  const { data: doc, isLoading, error } = useQuery<Document>({
     queryKey: ['document', id],
     queryFn: () => documentsApi.get(id),
     refetchInterval: (query: any) => {
@@ -164,10 +165,12 @@ export default function DocumentDetailPage() {
       <AppLayout>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
-          <h2 className="text-slate-900 dark:text-slate-100 font-semibold text-lg">Document not found</h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">The document you are looking for does not exist or has been deleted.</p>
+          <h2 className="text-slate-900 dark:text-slate-100 font-semibold text-lg">Document introuvable</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">
+            Le document que tu cherches n'existe pas ou a ete supprime.
+          </p>
           <Button variant="secondary" className="mt-4" onClick={() => router.push('/documents')}>
-            Back to documents
+            Retour aux documents
           </Button>
         </div>
       </AppLayout>
@@ -197,7 +200,7 @@ export default function DocumentDetailPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-600 dark:text-brand-300">
-                    Document intelligence
+                    Intelligence documentaire
                   </p>
                   <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
                     {doc.originalName}
@@ -221,33 +224,33 @@ export default function DocumentDetailPage() {
                 </Button>
                 <Button variant="secondary" onClick={() => reindexMutation.mutate()} isLoading={reindexMutation.isPending}>
                   <RefreshCw className="w-4 h-4" />
-                  Re-index
+                  Reindexer
                 </Button>
                 {!doc.archived ? (
                   <Button variant="secondary" onClick={() => archiveMutation.mutate()} isLoading={archiveMutation.isPending}>
                     <Archive className="w-4 h-4" />
-                    Archive
+                    Archiver
                   </Button>
                 ) : (
                   <Button variant="secondary" onClick={() => restoreMutation.mutate()} isLoading={restoreMutation.isPending}>
                     <Undo2 className="w-4 h-4" />
-                    Restore
+                    Restaurer
                   </Button>
                 )}
                 <Button onClick={() => summaryMutation.mutate('all')} isLoading={summaryMutation.isPending}>
                   <Sparkles className="w-4 h-4" />
-                  Refresh summaries
+                  Actualiser les resumes
                 </Button>
                 <Button variant="danger" onClick={() => setShowDelete(true)} className="ml-auto">
                   <Trash2 className="w-4 h-4" />
-                  Delete
+                  Supprimer
                 </Button>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
               <Card className="border-surface-200 bg-white/90 p-5">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">AI state</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Etat IA</p>
                 <div className="mt-4 space-y-3 text-sm font-medium text-slate-600 dark:text-slate-300">
                   <div className="flex items-center justify-between">
                     <span>Conversations</span>
@@ -255,19 +258,19 @@ export default function DocumentDetailPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Pages</span>
-                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{doc.pageCount || 'N/A'}</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{doc.pageCount || 'N/D'}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Summary ready</span>
-                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{summaryData.detailed ? 'Yes' : 'No'}</span>
+                    <span>Resume pret</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{summaryData.detailed ? 'Oui' : 'Non'}</span>
                   </div>
                 </div>
               </Card>
 
               <Card className="border-surface-200 bg-slate-950 text-white">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/60">Preview</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/60">Apercu</p>
                 <p className="mt-3 text-sm font-medium text-white/80">
-                  Open the original document and jump to cited pages from the conversation sources.
+                  Ouvre le document original et saute vers les pages citees dans les sources de la conversation.
                 </p>
                 {previewUrl && (
                   <Button
@@ -276,7 +279,7 @@ export default function DocumentDetailPage() {
                     onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}
                   >
                     <ExternalLink className="w-4 h-4" />
-                    Open original
+                    Ouvrir l'original
                   </Button>
                 )}
               </Card>
@@ -286,10 +289,10 @@ export default function DocumentDetailPage() {
 
         <div className="flex flex-wrap gap-2 rounded-2xl border border-surface-200 bg-surface-100 p-2">
           {[
-            { id: 'overview', label: 'Overview', icon: BookOpen },
-            { id: 'highlights', label: 'Highlights', icon: Highlighter },
-            { id: 'summary', label: 'Summaries', icon: Sparkles },
-            { id: 'chat', label: 'AI Chat', icon: FileSearch },
+            { id: 'overview', label: 'Apercu', icon: BookOpen },
+            { id: 'highlights', label: 'Passages', icon: Highlighter },
+            { id: 'summary', label: 'Resumes', icon: Sparkles },
+            { id: 'chat', label: 'Chat IA', icon: FileSearch },
           ].map(({ id: tabId, label, icon: Icon }) => (
             <button
               key={tabId}
@@ -309,28 +312,28 @@ export default function DocumentDetailPage() {
         {tab === 'overview' && (
           <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
             <Card className="border-surface-200">
-              <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Document preview</h2>
+              <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Apercu du document</h2>
               <div className="mt-5 overflow-hidden rounded-3xl border border-surface-200 bg-slate-50">
                 {doc.mimeType === 'application/pdf' && previewUrl ? (
                   <iframe
-                    title="Document preview"
+                    title="Apercu du document"
                     src={previewUrl}
                     className="h-[720px] w-full bg-white"
                   />
                 ) : (
                   <div className="flex h-[320px] items-center justify-center text-sm font-medium text-slate-500">
-                    Inline preview is available for PDF documents.
+                    L'apercu inline est disponible pour les documents PDF.
                   </div>
                 )}
               </div>
             </Card>
 
             <Card className="border-surface-200">
-              <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Latest AI evidence</h2>
+              <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Dernieres preuves IA</h2>
               <div className="mt-5 space-y-4">
                 {!activeAssistantMessage?.sources?.length ? (
                   <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-sm font-medium text-slate-500">
-                    Ask a question in the AI Chat tab to generate source-backed evidence.
+                    Pose une question dans l'onglet Chat IA pour generer des preuves avec sources.
                   </div>
                 ) : (
                   activeAssistantMessage.sources.map((source, index) => (
@@ -338,7 +341,7 @@ export default function DocumentDetailPage() {
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{source.documentName}</p>
                         <Button variant="ghost" size="sm" onClick={() => openSourcePage(source.pageNumber)}>
-                          Open source
+                          Ouvrir la source
                         </Button>
                       </div>
                       <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{source.text}</p>
@@ -354,15 +357,15 @@ export default function DocumentDetailPage() {
           <Card className="border-surface-200">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Relevant passages</h2>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Passages pertinents</h2>
                 <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Highlighted from the latest assistant answer. This is a safe first step toward full PDF-level highlighting.
+                  Mis en evidence a partir de la derniere reponse de l'assistant. C'est une premiere etape vers un surlignage complet du PDF.
                 </p>
               </div>
               {activeAssistantMessage?.sources?.[0]?.pageNumber && (
                 <Button variant="secondary" onClick={() => openSourcePage(activeAssistantMessage.sources?.[0]?.pageNumber)}>
                   <ExternalLink className="w-4 h-4" />
-                  Open cited page
+                  Ouvrir la page citee
                 </Button>
               )}
             </div>
@@ -371,7 +374,7 @@ export default function DocumentDetailPage() {
               <div className="space-y-4">
                 {(activeAssistantMessage?.highlights || []).length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-sm font-medium text-slate-500">
-                    No AI highlight available yet. Ask a question first to extract relevant passages.
+                    Aucun surlignage IA disponible pour le moment. Pose d'abord une question pour extraire les passages pertinents.
                   </div>
                 ) : (
                   activeAssistantMessage?.highlights?.map((highlight, index) => (
@@ -388,13 +391,13 @@ export default function DocumentDetailPage() {
               <div className="rounded-3xl border border-surface-200 bg-slate-50 p-5">
                 <div className="mb-4 flex items-center gap-2">
                   <AlignLeft className="w-4 h-4 text-slate-400" />
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Extracted text with dynamic highlighting</p>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Texte extrait avec surlignage dynamique</p>
                 </div>
                 <div className="max-h-[720px] overflow-auto rounded-2xl bg-white p-6">
                   <p
                     className="whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300"
                     dangerouslySetInnerHTML={{
-                      __html: highlightText(doc.extractedText || 'No extracted text available.', highlightTerms),
+                    __html: highlightText(doc.extractedText || 'Aucun texte extrait disponible.', highlightTerms),
                     }}
                   />
                 </div>
@@ -407,9 +410,9 @@ export default function DocumentDetailPage() {
           <Card className="border-surface-200">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Multi-format summaries</h2>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Resumes multi-format</h2>
                 <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Short brief, detailed synthesis, and key points, all generated from the existing OCR text.
+                  Resume court, synthese detaillee et points cles, tous generes depuis le texte OCR existant.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -423,7 +426,7 @@ export default function DocumentDetailPage() {
                         : 'bg-surface-100 text-slate-600 hover:bg-surface-200'
                     }`}
                   >
-                    {mode === 'short' ? 'Short' : mode === 'detailed' ? 'Detailed' : 'Key points'}
+                    {mode === 'short' ? 'Court' : mode === 'detailed' ? 'Detaille' : 'Points cles'}
                   </button>
                 ))}
               </div>
@@ -462,14 +465,14 @@ export default function DocumentDetailPage() {
             <Card className="border-surface-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">History</p>
-                  <h2 className="mt-2 text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Document threads</h2>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Historique</p>
+                  <h2 className="mt-2 text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Fils de discussion</h2>
                 </div>
                 <Button
                   size="sm"
                   onClick={async () => {
                     const conversation = await conversationsApi.create({
-                      title: 'New document thread',
+                      title: 'Nouveau fil de document',
                       scope: 'document',
                       documentId: id,
                     });
@@ -478,14 +481,14 @@ export default function DocumentDetailPage() {
                   }}
                 >
                   <Sparkles className="w-4 h-4" />
-                  New
+                  Nouveau
                 </Button>
               </div>
 
               <div className="mt-5 space-y-3">
                 {conversations.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-6 text-sm font-medium text-slate-500">
-                    No conversation yet for this document.
+                    Aucune conversation pour ce document pour le moment.
                   </div>
                 ) : (
                   conversations.map((conversation: Conversation) => (
@@ -515,9 +518,9 @@ export default function DocumentDetailPage() {
                 onQuestionChange={setQuestion}
                 onSend={() => askMutation.mutate(question)}
                 isSending={askMutation.isPending}
-                placeholder="Ask this specific document anything: clauses, dates, obligations, exceptions..."
-                emptyTitle="Document-specific assistant"
-                emptyDescription="This thread is scoped to the current document and keeps the full conversation history."
+                placeholder="Pose une question sur ce document : clauses, dates, obligations, exceptions..."
+                emptyTitle="Assistant du document"
+                emptyDescription="Ce fil est limite au document courant et conserve tout l'historique de conversation."
               />
 
               {askMutation.isError && (
@@ -535,9 +538,9 @@ export default function DocumentDetailPage() {
         onClose={() => setShowDelete(false)}
         onConfirm={() => deleteMutation.mutate()}
         isLoading={deleteMutation.isPending}
-        title="Delete Document"
-        message={`Delete "${doc.originalName}" and all related OCR, embeddings, summaries, and conversations?`}
-        confirmLabel="Delete"
+        title="Supprimer le document"
+        message={`Supprimer "${doc.originalName}" ainsi que tous les OCR, embeddings, resumes et conversations associes ?`}
+        confirmLabel="Supprimer"
         danger
       />
     </AppLayout>
@@ -553,13 +556,13 @@ const EmptySummary = ({
 }) => (
   <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-6 py-12 text-center">
     <FileText className="mx-auto w-10 h-10 text-slate-300" />
-    <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">No summary generated yet</p>
+    <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">Aucun resume genere pour le moment</p>
     <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-      Generate the short, detailed, and key-point views from the current OCR text.
+      Genere les vues courte, detaillee et points cles a partir du texte OCR courant.
     </p>
     <Button className="mt-5" onClick={onGenerate} isLoading={isLoading}>
       <Sparkles className="w-4 h-4" />
-      Generate summaries
+      Generer les resumes
     </Button>
   </div>
 );

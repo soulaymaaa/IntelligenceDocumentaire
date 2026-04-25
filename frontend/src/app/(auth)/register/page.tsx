@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Mail, Lock, User, Brain, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -10,6 +10,7 @@ import { getErrorMessage } from '@/lib/utils';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageToggle } from '@/components/layout/LanguageToggle';
 import { useLanguage } from '@/providers/LanguageProvider';
+import { LogoMark } from '@/components/branding/LogoMark';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -49,13 +50,7 @@ export default function RegisterPage() {
 
       <div className="w-full max-w-md relative">
         <Link href="/" className="mb-12 flex items-center gap-3 group">
-          <div className="w-12 h-12 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg shadow-brand-500/20 transition-transform duration-200 group-hover:scale-[1.03]">
-            <Brain className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <span className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-brand-700 to-brand-500 tracking-tight">DocIntel</span>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{copy.auth.registerKicker}</p>
-          </div>
+          <LogoMark className="h-auto w-[64px] max-w-full transition-transform duration-200 group-hover:scale-[1.03]" />
         </Link>
 
         <div className="mb-10">
@@ -115,7 +110,7 @@ export default function RegisterPage() {
         <p className="mt-8 text-center text-sm font-bold text-slate-500">
           {copy.auth.alreadyHaveAccount}{' '}
           <Link href="/login" className="text-brand-600 dark:text-brand-400 hover:text-brand-700 font-bold transition-colors">
-            {copy.auth.signIn}
+            {copy.home.signIn}
           </Link>
         </p>
       </div>

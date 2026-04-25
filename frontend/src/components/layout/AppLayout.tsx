@@ -24,8 +24,8 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
     <div className="min-h-screen bg-surface">
       <Sidebar />
       <TopBar />
-      <main className="ml-64 pt-16 min-h-screen">
-        <div className="p-6 animate-fade-in">{children}</div>
+      <main className="ml-60 pt-[108px] min-h-screen">
+        <div className="p-5 animate-fade-in">{children}</div>
       </main>
     </div>
   );

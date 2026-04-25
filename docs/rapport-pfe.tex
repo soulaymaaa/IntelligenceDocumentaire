@@ -1,0 +1,475 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+\onehalfspacing
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={Rapport de PFE - Intelligence Documentaire},
+  pdfauthor={[Ton nom]}
+}
+
+\setlength{\parindent}{0pt}
+\setlist[itemize]{leftmargin=1.4em}
+\setlist[enumerate]{leftmargin=1.6em}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{1.5cm}
+
+  {\Large R\'epublique Tunisienne\par}
+  \vspace{0.3cm}
+  {\Large Minist\`ere de l'Enseignement Sup\'erieur et de la Recherche Scientifique\par}
+  \vspace{0.8cm}
+  {\Large [Nom de l'établissement]\par}
+
+  \vspace{2.2cm}
+  {\Huge\bfseries Rapport de Projet de Fin d'Études\par}
+  \vspace{0.8cm}
+  {\LARGE\bfseries DocIntel\par}
+  \vspace{0.4cm}
+  {\Large Plateforme d'intelligence documentaire\par}
+
+  \vspace{2.0cm}
+  \begin{flushleft}
+    R\'ealis\'e par : \textbf{[Ton nom]}\\[0.2cm]
+    Encadr\'e par : \textbf{[Nom encadrant acad\'emique]}\\[0.2cm]
+    Encadrant professionnel : \textbf{[Nom encadrant entreprise]}\\[0.2cm]
+    Organisme d'accueil : \textbf{[Nom de l'entreprise]}\\[0.2cm]
+    Ann\'ee universitaire : \textbf{2025 / 2026}
+  \end{flushleft}
+
+  \vfill
+\end{titlepage}
+
+\chapter*{D\'edicaces}
+\addcontentsline{toc}{chapter}{D\'edicaces}
+À mes chers parents, pour leur soutien constant, leur patience et leurs encouragements tout au long de mon parcours.
+
+À ma famille et à mes proches, pour leur confiance et leur présence à chaque étape de ce projet.
+
+À mes amis et collègues, pour leur aide, leurs échanges et les moments partagés pendant cette période de travail.
+
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+Je tiens à exprimer ma profonde gratitude à toutes les personnes qui ont contribué à la réalisation de ce projet.
+
+Je remercie d'abord mon encadrant pédagogique, \textbf{[Nom]}, pour sa disponibilité, ses conseils et son accompagnement durant la rédaction et le développement de ce projet.
+
+Je remercie également mon encadrant professionnel, \textbf{[Nom]}, pour sa confiance, son suivi régulier et ses remarques constructives qui ont fortement contribué à l'amélioration de la solution proposée.
+
+Enfin, je remercie l'ensemble des enseignants, collègues et membres de ma famille qui m'ont soutenu moralement et académiquement tout au long de ce travail.
+
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+La gestion des documents numériques est devenue un enjeu majeur dans les organisations qui manipulent quotidiennement des fichiers PDF, des images scannées et des archives textuelles. La recherche manuelle dans de grands volumes de documents reste lente, imprécise et coûteuse en temps.
+
+Dans ce contexte, \textbf{DocIntel} est une plateforme web conçue pour centraliser les documents, extraire automatiquement leur contenu grâce à l'OCR, générer des index vectoriels, effectuer une recherche sémantique et répondre à des questions en s'appuyant sur les sources extraites des documents.
+
+La solution repose sur une architecture full-stack moderne avec un frontend \textbf{Next.js}, un backend \textbf{Express.js}, une base de données \textbf{MongoDB}, ainsi que des services dédiés à l'OCR, aux embeddings et à l'assistance IA. Ce rapport présente le contexte du projet, l'analyse des besoins, l'architecture adoptée et les principales réalisations fonctionnelles.
+
+\textbf{Mots-clés} : intelligence documentaire, OCR, recherche sémantique, RAG, Next.js, Express, MongoDB.
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+Managing digital documents has become a critical need for organizations dealing with large volumes of PDF files, scanned images, and text archives. Manual search within such repositories is often slow, inaccurate, and time-consuming.
+
+In this context, \textbf{DocIntel} is a web platform designed to centralize documents, automatically extract their content using OCR, generate vector indexes, perform semantic search, and answer questions based on document-derived sources.
+
+The solution relies on a modern full-stack architecture built with \textbf{Next.js}, \textbf{Express.js}, \textbf{MongoDB}, and dedicated services for OCR, embeddings, and AI assistance. This report describes the project context, requirements analysis, chosen architecture, and main implemented features.
+
+\tableofcontents
+\listoffigures
+\listoftables
+\clearpage
+
+\chapter{Introduction g\'en\'erale}
+Dans les organisations modernes, la quantité croissante de documents rend la consultation manuelle de l'information de plus en plus difficile. Les utilisateurs doivent souvent parcourir des dizaines de PDF ou d'images scannées pour retrouver une donnée précise, ce qui entraîne une perte de temps et une baisse de productivité.
+
+Le projet \textbf{DocIntel} répond à cette problématique en proposant une plateforme documentaire intelligente permettant de déposer des fichiers, d'extraire automatiquement leur texte, de les indexer et de les interroger via une recherche sémantique et un assistant IA fondé sur les sources.
+
+L'objectif principal de ce travail est de concevoir et de développer une solution web qui :
+\begin{itemize}
+  \item centralise les documents dans un espace de travail unique ;
+  \item automatise l'extraction du texte à partir des fichiers PDF et images ;
+  \item améliore la recherche d'information par des mécanismes sémantiques ;
+  \item fournit des réponses argumentées grâce à une approche RAG ;
+  \item sécurise l'accès aux données par authentification et isolement par utilisateur.
+\end{itemize}
+
+Ce rapport est structuré de la manière suivante :
+\begin{itemize}
+  \item le premier chapitre présente le contexte général, la problématique et la solution proposée ;
+  \item le deuxième chapitre expose les besoins fonctionnels et non fonctionnels, ainsi que le modèle architectural ;
+  \item le troisième chapitre décrit la première release centrée sur le socle fonctionnel ;
+  \item le quatrième chapitre détaille la seconde release consacrée à l'intelligence documentaire ;
+  \item enfin, une conclusion générale synthétise les apports du projet.
+\end{itemize}
+
+\chapter{Contexte général et étude préalable}
+
+\section{Introduction}
+Ce chapitre situe le projet dans son contexte. Il présente l'environnement général du travail, les limites des solutions classiques de gestion documentaire et l'approche retenue pour construire DocIntel.
+
+\section{Pr\'esentation de l'organisme d'accueil}
+\textit{À compléter avec le nom de l'entreprise, son activité et son rôle dans le projet.}
+
+L'organisme d'accueil est une structure spécialisée dans le développement de solutions numériques. Le projet DocIntel s'inscrit dans une logique de transformation des processus documentaires par l'apport de l'automatisation, de la recherche intelligente et de l'assistance IA.
+
+\section{Pr\'esentation du projet}
+DocIntel est une plateforme web de gestion et d'intelligence documentaire. Elle permet de charger des documents, d'extraire leur contenu, d'indexer le texte obtenu, puis d'interroger les documents via une recherche sémantique ou un assistant conversationnel.
+
+\subsection{Probl\'ematique}
+Les solutions traditionnelles de gestion documentaire reposent souvent sur des recherches textuelles basiques. Elles sont peu efficaces lorsque les documents sont scannés, mal structurés ou volumineux. De plus, la consultation manuelle reste chronophage et ne permet pas toujours de retrouver rapidement l'information utile.
+
+La problématique traitée dans ce projet peut être formulée ainsi :
+
+\begin{quote}
+Comment concevoir une plateforme documentaire capable d'extraire automatiquement le contenu de fichiers hétérogènes, d'en améliorer l'exploration et de fournir des réponses fiables à partir de leurs sources ?
+\end{quote}
+
+\subsection{\'Etude de l'existant}
+Les solutions existantes se répartissent généralement en trois catégories :
+\begin{itemize}
+  \item les stockages de fichiers simples, qui se limitent à l'archivage sans intelligence de recherche ;
+  \item les outils d'OCR isolés, qui extraient le texte sans proposer de suivi, d'indexation ou de recherche avancée ;
+  \item les solutions de recherche documentaire génériques, qui ne fournissent pas de réponses contextualisées ni de citations.
+\end{itemize}
+
+Ces limites motivent la mise en place d'une plateforme intégrée comme DocIntel.
+
+\subsection{Solution propos\'ee}
+La solution proposée repose sur :
+\begin{itemize}
+  \item un espace sécurisé d'authentification ;
+  \item un module d'envoi et de gestion des documents ;
+  \item un pipeline OCR adapté aux PDF et aux images ;
+  \item un service d'embeddings pour créer des vecteurs de recherche ;
+  \item une recherche sémantique fondée sur la similarité cosinus ;
+  \item un module RAG pour générer des réponses sourcées ;
+  \item un tableau de bord de suivi des documents et des usages IA.
+\end{itemize}
+
+\section{M\'ethodologie de travail}
+Le projet est organisé de manière incrémentale selon une approche agile. Chaque itération apporte un ensemble cohérent de fonctionnalités testables.
+
+Dans ce cadre, la méthode retenue peut être présentée comme une adaptation de \textbf{SCRUM} :
+\begin{itemize}
+  \item un backlog produit regroupe les fonctionnalités prioritaires ;
+  \item les releases sont découpées en sprints ;
+  \item chaque sprint livre un sous-ensemble fonctionnel ;
+  \item les retours obtenus permettent d'ajuster les priorités de la suite du projet.
+\end{itemize}
+
+\section{Conclusion}
+Ce chapitre a permis de présenter le contexte du projet, la problématique traitée et la solution globale retenue. Le chapitre suivant détaille les besoins et l'architecture du système.
+
+\chapter{Analyse et sp\'ecification des besoins}
+
+\section{Introduction}
+L'objectif de ce chapitre est d'identifier les acteurs, de formaliser les besoins et de présenter le modèle architectural qui guide l'implémentation de DocIntel.
+
+\section{Identification des acteurs}
+Les principaux acteurs du système sont :
+\begin{itemize}
+  \item \textbf{Utilisateur authentifié} : charge les documents, consulte ses fichiers, effectue des recherches et pose des questions ;
+  \item \textbf{Administrateur} : peut superviser les documents, les journaux d'audit et les indicateurs de fonctionnement ;
+  \item \textbf{Services techniques} : OCR, embeddings, moteur IA, base de données, utilisés par la plateforme en arrière-plan.
+\end{itemize}
+
+\section{Identification des besoins}
+
+\subsection{Besoins fonctionnels}
+Les besoins fonctionnels du système sont :
+\begin{enumerate}
+  \item créer un compte et se connecter de manière sécurisée ;
+  \item vérifier l'adresse email lors de l'inscription ;
+  \item envoyer un document PDF ou image ;
+  \item extraire automatiquement le texte du document ;
+  \item indexer le contenu sous forme de chunks vectoriels ;
+  \item rechercher les passages pertinents dans les documents ;
+  \item générer des résumés assistés par IA ;
+  \item poser des questions sur un document ou sur l'ensemble des documents ;
+  \item archiver, supprimer ou reindexer un document ;
+  \item consulter un tableau de bord de suivi.
+\end{enumerate}
+
+\subsection{Besoins non fonctionnels}
+Les besoins non fonctionnels sont :
+\begin{itemize}
+  \item sécurité : authentification, cookies httpOnly, validation des entrées ;
+  \item performance : indexation par lots et recherche optimisée ;
+  \item traçabilité : journalisation des actions critiques ;
+  \item modularité : séparation frontend/backend/services ;
+  \item maintenabilité : code TypeScript structuré en modules ;
+  \item évolutivité : architecture pouvant accueillir un moteur vectoriel plus robuste à terme.
+\end{itemize}
+
+\section{Diagrammes de cas d'utilisation globale}
+Le diagramme de cas d'utilisation global présente les interactions entre l'utilisateur et la plateforme : authentification, dépôt de fichiers, recherche, résumé, questions IA et gestion documentaire.
+
+\textit{Les diagrammes Mermaid correspondants sont regroupés dans \texttt{docs/pfe-diagrams.md}.}
+
+\section{Planification du travail}
+Le projet a été organisé en deux releases successives, chacune regroupant plusieurs sprints :
+\begin{itemize}
+  \item \textbf{Release 1} : mise en place du socle applicatif, de l'authentification et de la gestion documentaire ;
+  \item \textbf{Release 2} : ajout de l'intelligence documentaire, de la recherche sémantique et de l'assistance IA.
+\end{itemize}
+
+\section{Composition du backlog produit}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}p{6.2cm} >{\raggedright\arraybackslash}p{5.0cm}}
+\toprule
+Priorit\'e & Fonctionnalit\'e & Valeur m\'etier \\
+\midrule
+Haute & Authentification & Accès sécurisé à la plateforme \\
+Haute & Upload de documents & Alimentation du référentiel \\
+Haute & OCR et extraction de texte & Rendre les fichiers exploitables \\
+Haute & Indexation vectorielle & Améliorer la recherche \\
+Haute & Recherche sémantique & Retrouver les informations pertinentes \\
+Moyenne & Résumés IA & Accélérer la lecture \\
+Moyenne & RAG conversationnel & Répondre aux questions des utilisateurs \\
+Moyenne & Tableau de bord & Suivre l'activité et l'état des documents \\
+Moyenne & Archivage / suppression & Gérer le cycle de vie documentaire \\
+\bottomrule
+\end{longtable}
+
+\section{Découpage des sprints}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{1.9cm} >{\raggedright\arraybackslash}p{4.8cm} >{\raggedright\arraybackslash}p{6.7cm}}
+\toprule
+Sprint & Objectif & Livrables \\
+\midrule
+Sprint 1 & Initialisation du socle technique & Architecture frontend/backend, configuration, navigation de base \\
+Sprint 2 & Authentification et sécurité & Inscription, connexion, vérification email, reset password \\
+Sprint 3 & Gestion des documents & Upload, liste, détail, archivage, suppression \\
+Sprint 4 & OCR et extraction de contenu & Traitement PDF/image, extraction native, fallback Tesseract \\
+Sprint 5 & Indexation et recherche sémantique & Chunking, embeddings, similarité cosinus, dashboard enrichi \\
+Sprint 6 & Assistant IA et finalisation & RAG, résumés, citations de sources, ajustements UI/UX \\
+\bottomrule
+\end{longtable}
+
+\section{Le modèle architectural}
+L'application suit une architecture en couches :
+\begin{itemize}
+  \item \textbf{Frontend} : interface utilisateur sous Next.js App Router ;
+  \item \textbf{Backend} : API REST sous Express.js ;
+  \item \textbf{Données} : MongoDB pour les utilisateurs, documents, chunks et journaux ;
+  \item \textbf{Services IA} : OCR, embeddings, génération de réponses et résumés.
+\end{itemize}
+
+\section{Environnement de travail}
+
+\subsection{Environnement hardware}
+\begin{itemize}
+  \item poste de développement sous Windows ;
+  \item ressources de calcul locales pour le développement ;
+  \item serveur MongoDB local ou distant selon la configuration.
+\end{itemize}
+
+\subsection{Environnement logiciel}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{3.5cm} >{\raggedright\arraybackslash}p{10.0cm}}
+\toprule
+Catégorie & Outils \\
+\midrule
+Frontend & Next.js, React, TypeScript, Tailwind CSS \\
+Backend & Express.js, TypeScript, Mongoose \\
+IA / NLP & Tesseract.js, pdf-parse, embeddings, LLM \\
+Base de données & MongoDB \\
+Outils & Git, Docker, VS Code \\
+\bottomrule
+\end{longtable}
+
+\section{Conclusion}
+L'analyse des besoins a permis de définir les fonctionnalités clés et de structurer le travail en releases. Le chapitre suivant présente le socle fonctionnel de la plateforme.
+
+\chapter{Release 1 - Socle fonctionnel}
+
+\section{Introduction}
+Cette première release met en place les fonctionnalités indispensables au fonctionnement de la plateforme : sécurité, navigation, tableau de bord et gestion initiale des documents.
+
+\section{Sprint 1 : Initialisation du socle technique}
+Ce sprint a servi à poser les fondations du projet :
+\begin{itemize}
+  \item structuration du frontend et du backend ;
+  \item configuration de l'environnement de développement ;
+  \item mise en place du layout principal ;
+  \item intégration des providers partagés ;
+  \item préparation de la navigation et du thème visuel.
+\end{itemize}
+
+\subsection{Réalisation}
+Le projet a été initialisé sous forme d'une application web full-stack séparant clairement l'interface utilisateur et l'API métier. Cette étape a permis d'assurer une base stable pour les sprints suivants.
+
+\section{Sprint 2 : Authentification et sécurité}
+Ce sprint couvre :
+\begin{itemize}
+  \item l'inscription utilisateur ;
+  \item la connexion sécurisée ;
+  \item la vérification de l'email ;
+  \item la réinitialisation du mot de passe ;
+  \item la gestion des sessions et des jetons.
+\end{itemize}
+
+\subsection{Réalisation}
+Le backend expose les routes d'authentification dans \texttt{backend/src/modules/auth/auth.routes.ts}. Les contrôleurs valident les entrées avec Zod, puis délèguent la logique métier au service d'authentification. Les mots de passe sont hashés avec bcrypt et l'accès est protégé via JWT.
+
+\section{Sprint 3 : Gestion documentaire}
+Ce sprint met en œuvre :
+\begin{itemize}
+  \item l'envoi de fichiers PDF et images ;
+  \item la liste des documents ;
+  \item la consultation du détail d'un document ;
+  \item l'archivage et la suppression ;
+  \item le tableau de bord avec les métriques principales.
+\end{itemize}
+
+\subsection{Réalisation}
+Le module document gère le cycle de vie du document : création de l'entrée, stockage local, statut, archivage et suppression des chunks associés.
+
+\section{Diagrammes de cas d'utilisation}
+Les cas d'utilisation de cette release couvrent l'accès à la plateforme et l'administration documentaire de base.
+
+\section{Diagrammes de séquence}
+Le diagramme de séquence du sprint d'authentification illustre :
+\begin{itemize}
+  \item la demande d'inscription ;
+  \item l'envoi du code de vérification ;
+  \item la validation du code ;
+  \item l'émission du jeton de session.
+\end{itemize}
+
+\section{Conclusion}
+La première release a permis de construire un socle stable et sécurisé sur lequel reposent les fonctionnalités intelligentes de la seconde release.
+
+\chapter{Release 2 - Intelligence documentaire}
+
+\section{Introduction}
+Cette deuxième release transforme DocIntel en plateforme documentaire intelligente. Elle ajoute l'extraction automatique de texte, la vectorisation, la recherche sémantique et les réponses assistées par IA.
+
+\section{Sprint 4 : OCR et extraction de contenu}
+Ce sprint comprend :
+\begin{itemize}
+  \item l'extraction de texte à partir des PDF natifs ;
+  \item le recours à Tesseract pour les fichiers scannés ou images ;
+  \item le découpage du texte en chunks ;
+  \item la génération d'embeddings ;
+  \item l'enregistrement des vecteurs dans MongoDB.
+\end{itemize}
+
+\subsection{Réalisation}
+Le service OCR détecte si le fichier est un PDF ou une image. Pour les PDF, il tente d'abord une extraction native via \texttt{pdf-parse}, puis bascule vers Tesseract si le texte extrait est insuffisant. Ensuite, le service d'embeddings découpe le texte en blocs, génère les vecteurs et les stocke pour la recherche.
+
+\section{Sprint 5 : Indexation et recherche sémantique}
+Ce sprint met en place :
+\begin{itemize}
+  \item le découpage des textes en chunks ;
+  \item la génération des embeddings ;
+  \item le stockage vectoriel dans MongoDB ;
+  \item la recherche par similarité cosinus ;
+  \item la préparation du contexte pour les requêtes IA.
+\end{itemize}
+
+\subsection{Réalisation}
+Le service d'embeddings transforme le texte extrait en représentations vectorielles exploitables pour la recherche. Le service de recherche sémantique récupère ensuite les passages les plus proches de la question de l'utilisateur.
+
+\section{Sprint 6 : Assistant IA et finalisation}
+Ce sprint met en place :
+\begin{itemize}
+  \item la recherche vectorielle par similarité cosinus ;
+  \item la recherche ciblée par document ;
+  \item l'interface de recherche sémantique ;
+  \item les conversations persistantes ;
+  \item les réponses RAG sourcées ;
+  \item la génération de résumés.
+\end{itemize}
+
+\subsection{Réalisation}
+Le service RAG récupère les chunks les plus pertinents en fonction de la question posée, construit un contexte, puis interroge un modèle de langage. La réponse générée est accompagnée des sources utilisées pour améliorer la confiance et la traçabilité.
+
+\section{Diagrammes de cas d'utilisation}
+Cette release couvre principalement :
+\begin{itemize}
+  \item la recherche dans les documents ;
+  \item le résumé d'un document ;
+  \item la conversation globale avec sources ;
+  \item l'affichage des extraits pertinents.
+\end{itemize}
+
+\section{Diagrammes de séquences}
+Les diagrammes de séquence montrent :
+\begin{itemize}
+  \item l'envoi d'une question ;
+  \item la création de l'embedding requête ;
+  \item la récupération des chunks ;
+  \item la génération de la réponse ;
+  \item l'affichage des sources.
+\end{itemize}
+
+\section{Réalisation de la release}
+Les interfaces frontend correspondantes se trouvent dans :
+\begin{itemize}
+  \item \texttt{frontend/src/app/search/page.tsx}
+  \item \texttt{frontend/src/app/documents/[id]/page.tsx}
+  \item \texttt{frontend/src/components/ai/ConversationPanel.tsx}
+\end{itemize}
+
+\section{Conclusion}
+La seconde release apporte la valeur principale de DocIntel : la transformation de documents bruts en connaissance exploitable.
+
+\chapter{Conclusion g\'en\'erale}
+Ce projet a permis de concevoir et de développer une plateforme documentaire intelligente répondant à un besoin réel de centralisation, d'extraction et d'exploitation de documents hétérogènes.
+
+DocIntel combine plusieurs briques techniques complémentaires :
+\begin{itemize}
+  \item un frontend ergonomique avec Next.js ;
+  \item une API modulaire avec Express.js ;
+  \item une base de données MongoDB ;
+  \item un pipeline OCR et d'indexation ;
+  \item une recherche sémantique ;
+  \item un assistant IA fondé sur les sources.
+\end{itemize}
+
+Au-delà de la réalisation technique, ce projet m'a permis de consolider mes compétences en architecture logicielle, en développement full-stack, en traitement documentaire et en intégration d'outils d'intelligence artificielle.
+
+\section*{Perspectives d'amélioration}
+\addcontentsline{toc}{section}{Perspectives d'amélioration}
+\begin{itemize}
+  \item adoption d'un moteur vectoriel natif pour les gros volumes ;
+  \item traitement asynchrone robuste avec une vraie file de jobs ;
+  \item stockage cloud des fichiers ;
+  \item notifications temps réel de progression OCR ;
+  \item partage et collaboration entre utilisateurs ;
+  \item export des données utilisateur.
+\end{itemize}
+
+\chapter*{Annexes sugg\'er\'ees}
+\addcontentsline{toc}{chapter}{Annexes sugg\'er\'ees}
+\begin{itemize}
+  \item Figure 1 : architecture globale de DocIntel ;
+  \item Figure 2 : cas d'utilisation global ;
+  \item Figure 3 : pipeline d'upload, OCR et indexation ;
+  \item Figure 4 : séquence de recherche sémantique et RAG ;
+  \item Figure 5 : modèle de données simplifié.
+\end{itemize}
+
+\end{document}

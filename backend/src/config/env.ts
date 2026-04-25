@@ -16,7 +16,7 @@ const envSchema = z.object({
   SMTP_FROM: z.string().default('"Intelligence Documentaire" <noreply@intelligence-documentaire.com>'),
   UPLOAD_DIR: z.string().default('./uploads'),
   MAX_FILE_SIZE_MB: z.string().default('50').transform(Number),
-  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  CORS_ORIGIN: z.string().default('http://localhost:3000,http://localhost:3002'),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000').transform(Number),
   RATE_LIMIT_MAX: z.string().default('100').transform(Number),
   AUTH_RATE_LIMIT_MAX: z.string().default('10').transform(Number),

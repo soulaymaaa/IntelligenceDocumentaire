@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Mail, Lock, Brain, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -10,6 +10,7 @@ import { getErrorMessage } from '@/lib/utils';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageToggle } from '@/components/layout/LanguageToggle';
 import { useLanguage } from '@/providers/LanguageProvider';
+import { LogoMark } from '@/components/branding/LogoMark';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -52,10 +53,7 @@ export default function LoginPage() {
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="relative text-center">
           <Link href="/" className="inline-block group">
-            <div className="w-24 h-24 rounded-3xl bg-brand-gradient shadow-xl shadow-brand-500/20 mx-auto mb-8 flex items-center justify-center transition-transform duration-200 group-hover:scale-[1.02]">
-              <Brain className="w-12 h-12 text-white" />
-            </div>
-            <h2 className="text-5xl font-extrabold text-slate-900 dark:text-slate-100 mb-6 tracking-tight">DocIntel</h2>
+            <LogoMark className="h-auto w-[72px] max-w-full mx-auto mb-8" />
           </Link>
           <p className="text-slate-600 dark:text-slate-400 text-xl max-w-sm font-medium leading-relaxed">
             {copy.auth.leftPanelDescription}
@@ -79,10 +77,7 @@ export default function LoginPage() {
 
         <div className="w-full max-w-md">
           <Link href="/" className="mb-12 flex items-center gap-3 lg:hidden group">
-            <div className="w-10 h-10 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg shadow-brand-500/20 transition-transform duration-200 group-hover:scale-[1.03]">
-              <Brain className="w-5.5 h-5.5 text-white" />
-            </div>
-            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-700 to-brand-500">DocIntel</span>
+            <LogoMark className="h-auto w-[60px] max-w-full transition-transform duration-200 group-hover:scale-[1.03]" />
           </Link>
 
           <div className="mb-10">

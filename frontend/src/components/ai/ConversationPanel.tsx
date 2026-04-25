@@ -142,13 +142,13 @@ export const ConversationPanel = ({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
-              Conversational RAG
+              RAG conversationnel
             </p>
             <h3 className="mt-2 text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-              {conversation?.title || emptyTitle || 'Start an intelligent conversation'}
+              {conversation?.title || emptyTitle || 'Demarrer une conversation intelligente'}
             </h3>
             <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-              {emptyDescription || 'Ask questions naturally, keep the history, and inspect the evidence used by the model.'}
+              {emptyDescription || "Pose des questions naturellement, conserve l'historique et inspecte les preuves utilisees par le modele."}
             </p>
           </div>
           <div className="hidden rounded-2xl border border-brand-500/20 bg-brand-500/10 p-3 text-brand-600 dark:block">
@@ -161,7 +161,7 @@ export const ConversationPanel = ({
             rows={4}
             value={question}
             onChange={(event) => onQuestionChange(event.target.value)}
-            placeholder={placeholder || 'Ask a question about your documents'}
+            placeholder={placeholder || 'Pose une question sur tes documents'}
             className="bg-surface-50 dark:bg-slate-950/40"
             onKeyDown={(event) => {
               if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -176,7 +176,7 @@ export const ConversationPanel = ({
             </div>
             <Button onClick={onSend} isLoading={isSending} disabled={!question.trim()} size="lg">
               <Send className="w-4 h-4" />
-              Send
+              Envoyer
             </Button>
           </div>
         </div>
@@ -187,11 +187,9 @@ export const ConversationPanel = ({
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl border border-brand-500/20 bg-brand-500/10 text-brand-600">
             <MessageSquare className="w-8 h-8" />
           </div>
-          <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-            No messages yet
-          </p>
+          <p className="text-lg font-bold text-slate-900 dark:text-slate-100">Aucun message pour le moment</p>
           <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-            The first response will create the conversation history automatically.
+            La premiere reponse creera automatiquement l'historique de conversation.
           </p>
         </Card>
       ) : (

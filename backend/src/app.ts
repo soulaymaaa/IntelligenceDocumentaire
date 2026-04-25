@@ -15,6 +15,7 @@ import authRoutes from './modules/auth/auth.routes';
 import documentRoutes from './modules/documents/document.routes';
 import searchRoutes from './modules/search/search.routes';
 import aiRoutes from './modules/ai/ai.routes';
+import conversationRoutes from './modules/conversations/conversation.routes';
 
 const app = express();
 
@@ -25,8 +26,23 @@ app.use(helmet({
 }));
 
 // CORS
+const allowedOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean);
+const isLocalDevOrigin = (origin: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
 app.use(cors({
-  origin: env.CORS_ORIGIN,
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (allowedOrigins.includes(origin) || (env.NODE_ENV !== 'production' && isLocalDevOrigin(origin))) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -54,6 +70,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/conversations', conversationRoutes);
 
 // 404 handler
 app.use((_req, res) => {
