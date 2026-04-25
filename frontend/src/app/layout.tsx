@@ -3,9 +3,12 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: { default: 'DocIntel — Document Intelligence Platform', template: '%s | DocIntel' },
+  title: { default: 'DocIntel', template: '%s | DocIntel' },
   description: 'Upload, OCR, search, and ask AI questions about your documents with DocIntel.',
   keywords: ['document intelligence', 'OCR', 'AI', 'document search', 'RAG'],
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

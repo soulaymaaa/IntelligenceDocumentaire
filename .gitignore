@@ -77,3 +77,5 @@ out/
 
 # Uploads (if any)
 uploads/*
+temp_auto_push.bat
+temp_interactive_push.bat
