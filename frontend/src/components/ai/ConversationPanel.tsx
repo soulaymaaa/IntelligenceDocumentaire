@@ -187,8 +187,8 @@ export const ConversationPanel = ({
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl border border-brand-500/20 bg-brand-500/10 text-brand-600">
             <MessageSquare className="w-8 h-8" />
           </div>
-          <p className="text-lg font-bold text-slate-900 dark:text-slate-100">Aucun message pour le moment</p>
-          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+          <p className="text-lg font-extrabold text-slate-900">Aucun message pour le moment</p>
+          <p className="mt-2 text-sm font-semibold text-slate-600">
             La premiere reponse creera automatiquement l'historique de conversation.
           </p>
         </Card>

@@ -164,12 +164,7 @@ export default function HomePage() {
           </div>
 
           <div className="relative flex min-h-[620px] items-center justify-center overflow-visible pr-0 lg:pr-4 xl:pr-10">
-            <div className="absolute left-1/2 top-0 z-20 flex -translate-x-1/2 flex-col items-center gap-2 text-center">
-              <LogoMark className="h-auto w-[54px] max-w-[54px] shrink-0" />
-              <p className="text-[30px] font-extrabold tracking-[-0.06em] text-slate-900 dark:text-slate-100">
-                DocIntel
-              </p>
-            </div>
+
 
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_68%_72%,rgba(59,130,246,0.08),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(34,197,94,0.05),transparent_18%)] dark:bg-[radial-gradient(circle_at_68%_72%,rgba(59,130,246,0.16),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(34,197,94,0.08),transparent_18%)]" />
             <div className="absolute bottom-[9%] right-[11%] h-[190px] w-[190px] rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.22)_0%,rgba(59,130,246,0.12)_45%,rgba(59,130,246,0)_72%)] blur-2xl" />

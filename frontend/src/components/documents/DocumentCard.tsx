@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText } from 'lucide-react';
+import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText, Pencil, Check, X } from 'lucide-react';
 import { cn, formatBytes, formatDateShort, truncate } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/Badge';
 import type { Document } from '@/types';
@@ -11,6 +12,7 @@ interface DocumentCardProps {
   onDelete?: (id: string) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
+  onRename?: (id: string, newName: string) => Promise<void>;
 }
 
 const mimeIcon = (mime: string) => {
@@ -18,7 +20,38 @@ const mimeIcon = (mime: string) => {
   return <Image className="w-5 h-5 text-blue-400" />;
 };
 
-export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore }: DocumentCardProps) => {
+export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore, onRename }: DocumentCardProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState(doc.originalName);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleRename = async () => {
+    if (!onRename || newName.trim() === '' || newName === doc.originalName) {
+      setIsEditing(false);
+      setNewName(doc.originalName);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onRename(doc._id, newName.trim());
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to rename document:', error);
+      setNewName(doc.originalName);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleRename();
+    if (e.key === 'Escape') {
+      setIsEditing(false);
+      setNewName(doc.originalName);
+    }
+  };
+
   return (
     <div className={cn(
       'group bg-white rounded-2xl p-5 shadow-sm border border-slate-200',
@@ -33,15 +66,55 @@ export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore }: 
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
-            <Link
-              href={`/documents/${doc._id}`}
-              className="text-slate-900 font-bold text-sm leading-snug hover:text-brand-600 transition-colors line-clamp-2"
-            >
-              {doc.originalName}
-            </Link>
+            {isEditing ? (
+              <div className="flex-1 flex items-center gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isSubmitting}
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                />
+                <button
+                  onClick={handleRename}
+                  disabled={isSubmitting}
+                  className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { setIsEditing(false); setNewName(doc.originalName); }}
+                  disabled={isSubmitting}
+                  className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <Link
+                href={`/documents/${doc._id}`}
+                className="text-slate-900 font-bold text-sm leading-snug hover:text-brand-600 transition-colors line-clamp-2"
+              >
+                {doc.originalName}
+              </Link>
+            )}
 
             {/* Action menu */}
-            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <div className={cn(
+              "flex items-center gap-1.5 shrink-0 transition-opacity",
+              isEditing ? "opacity-0 pointer-events-none" : "opacity-0 group-hover:opacity-100"
+            )}>
+              {onRename && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-all border border-transparent hover:border-brand-100"
+                  title="Rename"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
               {!doc.archived && onArchive && (
                 <button
                   onClick={() => onArchive(doc._id)}

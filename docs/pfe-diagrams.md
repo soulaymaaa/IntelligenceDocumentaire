@@ -37,6 +37,8 @@ flowchart LR
 
 ## 2. Global Use Case Diagram
 
+> Version detaillee recommandee pour le rapport: [`docs/use-case-global.md`](use-case-global.md).
+
 ```mermaid
 flowchart LR
   U([Authenticated User])

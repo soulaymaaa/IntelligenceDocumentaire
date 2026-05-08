@@ -18,6 +18,7 @@ import { SkeletonCard } from '@/components/ui/Spinner';
 import { StatusBadge } from '@/components/ui/Badge';
 import { documentsApi } from '@/lib/api';
 import { formatBytes, formatDateShort } from '@/lib/utils';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 const StatCard = ({
   icon: Icon,
@@ -45,6 +46,7 @@ const StatCard = ({
 );
 
 export default function DashboardPage() {
+  const { copy } = useLanguage();
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: documentsApi.getDashboard,
@@ -69,23 +71,23 @@ export default function DashboardPage() {
         <Card className="border-surface-200 bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 text-white">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-200/70">Control tower</p>
-              <h1 className="mt-2 text-4xl font-extrabold tracking-tight">Document intelligence dashboard</h1>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-200/70">{copy.dashboard.controlTower}</p>
+              <h1 className="mt-2 text-4xl font-extrabold tracking-tight">{copy.dashboard.aiDashboard}</h1>
               <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-slate-300">
-                Track ingestion, AI usage, answer quality, and operational throughput without changing the current architecture.
+                {copy.dashboard.description}
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">Queries</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">{copy.dashboard.queries}</p>
                 <p className="mt-2 text-2xl font-extrabold">{stats?.totalQueries || 0}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">Summaries</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">{copy.dashboard.summaries}</p>
                 <p className="mt-2 text-2xl font-extrabold">{stats?.summariesGenerated || 0}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">Avg relevance</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">{copy.dashboard.avgRelevance}</p>
                 <p className="mt-2 text-2xl font-extrabold">{stats?.averageRelevanceScore || 0}%</p>
               </div>
             </div>
@@ -93,21 +95,21 @@ export default function DashboardPage() {
         </Card>
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={FileText} label="Documents" value={stats?.total || 0} helper="Files stored in your library" />
-          <StatCard icon={CheckCircle} label="Indexed" value={stats?.indexed || 0} helper="Ready for semantic retrieval" />
-          <StatCard icon={Clock} label="Processing" value={stats?.pending || 0} helper="OCR or embedding jobs in progress" />
-          <StatCard icon={Brain} label="AI queries" value={stats?.totalQueries || 0} helper="Historical RAG requests logged" />
+          <StatCard icon={FileText} label={copy.dashboard.stats.documents} value={stats?.total || 0} helper={copy.dashboard.stats.documentsHelper} />
+          <StatCard icon={CheckCircle} label={copy.dashboard.stats.indexed} value={stats?.indexed || 0} helper={copy.dashboard.stats.indexedHelper} />
+          <StatCard icon={Clock} label={copy.dashboard.stats.processing} value={stats?.pending || 0} helper={copy.dashboard.stats.processingHelper} />
+          <StatCard icon={Brain} label={copy.dashboard.stats.aiQueries} value={stats?.totalQueries || 0} helper={copy.dashboard.stats.aiQueriesHelper} />
         </div>
 
         <div className="grid gap-8 xl:grid-cols-[1.1fr,0.9fr]">
           <Card className="border-surface-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Recent library</p>
-                <h2 className="mt-2 text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Latest documents</h2>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{copy.dashboard.recentLibrary}</p>
+                <h2 className="mt-2 text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.dashboard.latestDocs}</h2>
               </div>
               <Link href="/documents" className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-600">
-                See all
+                {copy.dashboard.seeAll}
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -124,8 +126,8 @@ export default function DashboardPage() {
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{doc.originalName}</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      <p className="truncate text-sm font-extrabold text-slate-900">{doc.originalName}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-600">
                         {formatBytes(doc.size)} • {formatDateShort(doc.createdAt)}
                       </p>
                     </div>
@@ -134,7 +136,7 @@ export default function DashboardPage() {
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-sm font-medium text-slate-500">
-                  No documents yet.
+                  {copy.dashboard.noDocs}
                 </div>
               )}
             </div>
@@ -144,7 +146,7 @@ export default function DashboardPage() {
             <Card className="border-surface-200">
               <div className="flex items-center gap-3">
                 <Activity className="w-5 h-5 text-brand-600" />
-                <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Activity snapshot</h2>
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.dashboard.activitySnapshot}</h2>
               </div>
               <div className="mt-5 grid gap-3">
                 {(stats?.dailyActivity || []).slice(-7).map((entry) => (
@@ -165,21 +167,21 @@ export default function DashboardPage() {
             <Card className="border-surface-200">
               <div className="flex items-center gap-3">
                 <MessageSquareText className="w-5 h-5 text-brand-600" />
-                <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">AI performance</h2>
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.dashboard.aiPerformance}</h2>
               </div>
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl border border-surface-200 bg-surface-50 px-4 py-4">
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Average relevance</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{copy.dashboard.avgRelevance}</p>
                   <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-slate-100">{stats?.averageRelevanceScore || 0}%</p>
                 </div>
                 <div className="rounded-2xl border border-surface-200 bg-surface-50 px-4 py-4">
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Summaries generated</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{copy.dashboard.summaries}</p>
                   <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-slate-100">{stats?.summariesGenerated || 0}</p>
                 </div>
                 <div className="rounded-2xl border border-surface-200 bg-gradient-to-r from-brand-50 to-cyan-50 px-4 py-4">
                   <div className="flex items-center gap-3">
                     <Sparkles className="w-5 h-5 text-brand-600" />
-                    <p className="text-sm font-bold text-slate-800">This dashboard now reflects audit-driven AI usage, not only document counts.</p>
+                    <p className="text-sm font-bold text-slate-800">{copy.dashboard.aiNotice}</p>
                   </div>
                 </div>
               </div>

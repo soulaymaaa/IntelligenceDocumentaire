@@ -10,9 +10,11 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { searchApi, conversationsApi } from '@/lib/api';
 import { formatDateShort, getErrorMessage, truncate } from '@/lib/utils';
+import { useLanguage } from '@/providers/LanguageProvider';
 import type { Conversation, SearchResult } from '@/types';
 
 export default function SearchPage() {
+  const { copy } = useLanguage();
   const qc = useQueryClient();
   const [question, setQuestion] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,7 +58,7 @@ export default function SearchPage() {
   });
 
   const startNewConversation = async () => {
-    const conversation = await conversationsApi.create({ title: 'New global conversation', scope: 'global' });
+    const conversation = await conversationsApi.create({ title: copy.documents.detail.chat.new + ' ' + (conversations.length + 1), scope: 'global' });
     setSelectedConversationId(conversation._id);
     qc.invalidateQueries({ queryKey: ['conversations', 'global'] });
   };
@@ -74,16 +76,16 @@ export default function SearchPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/75">
-                  AI Workspace
+                  {copy.search.workspace.title}
                 </p>
                 <h1 className="mt-2 text-3xl font-extrabold tracking-tight">
-                  Semantic + Chat
+                  {copy.search.workspace.subtitle}
                 </h1>
               </div>
               <Brain className="w-10 h-10 text-white/80" />
             </div>
             <p className="mt-4 text-sm font-medium leading-6 text-white/85">
-              Explore your library with semantic retrieval, then switch into a persistent conversation with citations and relevance scoring.
+              {copy.search.workspace.description}
             </p>
           </Card>
 
@@ -91,22 +93,22 @@ export default function SearchPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">
-                  Conversations
+                  {copy.documents.detail.conversations}
                 </p>
                 <h2 className="mt-2 text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-                  Recent threads
+                  {copy.search.conversations.threads}
                 </h2>
               </div>
               <Button size="sm" onClick={startNewConversation}>
                 <Plus className="w-4 h-4" />
-                New
+                {copy.documents.detail.chat.new}
               </Button>
             </div>
 
             <div className="mt-5 space-y-3">
               {conversations.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-6 text-sm font-medium text-slate-500">
-                  No global conversation yet.
+                  {copy.search.conversations.noConversations}
                 </div>
               ) : (
                 conversations.map((conversation: Conversation) => (
@@ -139,14 +141,14 @@ export default function SearchPage() {
             <div className="flex items-center gap-2">
               <FileSearch className="w-5 h-5 text-brand-600" />
               <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-                Quick semantic retrieval
+                {copy.search.retrieval.title}
               </h2>
             </div>
             <div className="mt-4 flex gap-3">
               <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Find relevant fragments"
+                placeholder={copy.search.retrieval.placeholder}
                 className="input-base"
               />
               <Button
@@ -191,9 +193,9 @@ export default function SearchPage() {
             onQuestionChange={setQuestion}
             onSend={handleAsk}
             isSending={askMutation.isPending}
-            placeholder="Ask across all indexed documents, for example: Which contracts mention termination notice periods?"
-            emptyTitle="Global AI assistant"
-            emptyDescription="Keep long-running research threads, inspect supporting sources, and monitor the confidence of each response."
+            placeholder={copy.search.chat.placeholder}
+            emptyTitle={copy.search.chat.emptyTitle}
+            emptyDescription={copy.search.chat.emptyDescription}
           />
 
           {askMutation.isError && (
@@ -207,10 +209,10 @@ export default function SearchPage() {
               <Sparkles className="w-6 h-6 text-cyan-300" />
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-cyan-200/80">
-                  What changed
+                  {copy.search.footer.tag}
                 </p>
                 <p className="mt-1 text-lg font-extrabold tracking-tight">
-                  Persistent history, source evidence, and relevance scoring
+                  {copy.search.footer.title}
                 </p>
               </div>
             </div>

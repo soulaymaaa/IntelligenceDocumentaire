@@ -1,38 +1,45 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Locale, translations } from '@/lib/i18n';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { translations, Language, TranslationDict } from '@/lib/i18n/translations';
 
-type LanguageContextValue = {
-  locale: Locale;
-  setLocale: (locale: Locale) => void;
-  copy: (typeof translations)['en'];
-};
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  copy: TranslationDict;
+  t: TranslationDict;
+}
 
-const LanguageContext = createContext<LanguageContextValue | null>(null);
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>('fr');
+export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [language, setLanguageState] = useState<Language>('fr');
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('docintel-locale');
-    if (stored === 'en' || stored === 'fr') setLocale(stored);
+    const savedLang = localStorage.getItem('app_lang') as Language;
+    if (savedLang && (savedLang === 'fr' || savedLang === 'en')) {
+      setLanguageState(savedLang);
+    }
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('docintel-locale', locale);
-    document.documentElement.lang = locale;
-  }, [locale]);
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem('app_lang', lang);
+  };
 
-  const value = useMemo(() => ({ locale, setLocale, copy: translations[locale] }), [locale]);
+  const copy = translations[language];
 
-  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
-}
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, copy, t: copy }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
 
-export function useLanguage() {
+export const useLanguage = () => {
   const context = useContext(LanguageContext);
-  if (!context) throw new Error('useLanguage must be used within LanguageProvider');
+  if (context === undefined) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
   return context;
-}
+};

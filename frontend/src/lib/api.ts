@@ -161,6 +161,11 @@ export const documentsApi = {
     return extractData(res).document;
   },
 
+  rename: async (id: string, originalName: string): Promise<Document> => {
+    const res = await api.patch<ApiResponse<{ document: Document }>>(`/documents/${id}/rename`, { originalName });
+    return extractData(res).document;
+  },
+
   runOcr: async (id: string): Promise<void> => {
     await api.post(`/documents/${id}/run-ocr`);
   },

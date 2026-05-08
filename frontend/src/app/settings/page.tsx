@@ -10,8 +10,10 @@ import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/lib/auth-context';
 import { authApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 export default function SettingsPage() {
+  const { copy } = useLanguage();
   const { user } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -22,7 +24,7 @@ export default function SettingsPage() {
   const changePasswordMutation = useMutation({
     mutationFn: authApi.changePassword,
     onSuccess: () => {
-      setMessage('Password updated successfully.');
+      setMessage(copy.settings.password.success);
       setError('');
       setCurrentPassword('');
       setNewPassword('');
@@ -40,12 +42,12 @@ export default function SettingsPage() {
     setMessage('');
 
     if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters.');
+      setError(copy.settings.password.minLengthError);
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(copy.settings.password.mismatchError);
       return;
     }
 
@@ -56,10 +58,10 @@ export default function SettingsPage() {
     <AppLayout>
       <div className="mx-auto max-w-6xl space-y-8">
         <Card className="border-surface-200 bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 text-white">
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-200/70">Account center</p>
-          <h1 className="mt-2 text-4xl font-extrabold tracking-tight">Settings & security</h1>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-200/70">{copy.settings.accountCenter}</p>
+          <h1 className="mt-2 text-4xl font-extrabold tracking-tight">{copy.settings.title}</h1>
           <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-slate-300">
-            Manage your profile information, review authentication state, and keep your account secure.
+            {copy.settings.description}
           </p>
         </Card>
 
@@ -71,22 +73,22 @@ export default function SettingsPage() {
                   <User2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Profile</h2>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Current account identity</p>
+                  <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.settings.profile.title}</h2>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.settings.profile.subtitle}</p>
                 </div>
               </div>
 
               <div className="mt-6 space-y-4">
                 <div className="rounded-2xl border border-surface-200 bg-surface-50 px-4 py-4">
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Full name</p>
-                  <p className="mt-2 text-base font-bold text-slate-900 dark:text-slate-100">{user?.name || 'Unknown user'}</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{copy.settings.profile.fullName}</p>
+                  <p className="mt-2 text-base font-bold text-slate-900 dark:text-slate-100">{user?.name || copy.settings.profile.unknownUser}</p>
                 </div>
                 <div className="rounded-2xl border border-surface-200 bg-surface-50 px-4 py-4">
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Email</p>
-                  <p className="mt-2 text-base font-bold text-slate-900 dark:text-slate-100">{user?.email || 'Unknown email'}</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{copy.settings.profile.email}</p>
+                  <p className="mt-2 text-base font-bold text-slate-900 dark:text-slate-100">{user?.email || copy.settings.profile.unknownEmail}</p>
                 </div>
                 <div className="rounded-2xl border border-surface-200 bg-surface-50 px-4 py-4">
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">Role</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{copy.settings.profile.role}</p>
                   <p className="mt-2 text-base font-bold capitalize text-slate-900 dark:text-slate-100">{user?.role || 'user'}</p>
                 </div>
               </div>
@@ -98,16 +100,16 @@ export default function SettingsPage() {
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Security status</h2>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Current protections enabled on your account</p>
+                  <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.settings.security.title}</h2>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.settings.security.subtitle}</p>
                 </div>
               </div>
 
               <div className="mt-6 grid gap-3">
                 {[
-                  { icon: Mail, label: 'Email verification', value: 'Enabled' },
-                  { icon: KeyRound, label: 'Login code challenge', value: 'Enabled' },
-                  { icon: ShieldCheck, label: 'Password reset flow', value: 'Enabled' },
+                  { icon: Mail, label: copy.settings.security.emailVerification, value: copy.settings.security.enabled },
+                  { icon: KeyRound, label: copy.settings.security.loginCode, value: copy.settings.security.enabled },
+                  { icon: ShieldCheck, label: copy.settings.security.passwordReset, value: copy.settings.security.enabled },
                 ].map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex items-center gap-4 rounded-2xl border border-surface-200 bg-surface-50 px-4 py-4">
                     <div className="rounded-xl bg-white p-2 text-brand-600 shadow-sm">
@@ -131,14 +133,14 @@ export default function SettingsPage() {
                 <KeyRound className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Change password</h2>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Update your password without leaving the platform</p>
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.settings.password.title}</h2>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.settings.password.subtitle}</p>
               </div>
             </div>
 
             <form onSubmit={handlePasswordChange} className="mt-6 space-y-5">
               <Input
-                label="Current password"
+                label={copy.settings.password.current}
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -146,7 +148,7 @@ export default function SettingsPage() {
                 required
               />
               <Input
-                label="New password"
+                label={copy.settings.password.new}
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -155,7 +157,7 @@ export default function SettingsPage() {
                 minLength={8}
               />
               <Input
-                label="Confirm new password"
+                label={copy.settings.password.confirm}
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -178,7 +180,7 @@ export default function SettingsPage() {
               )}
 
               <Button type="submit" isLoading={changePasswordMutation.isPending} className="w-full justify-center h-12 text-base">
-                Update password
+                {copy.settings.password.update}
               </Button>
             </form>
           </Card>

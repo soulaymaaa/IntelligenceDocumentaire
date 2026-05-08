@@ -11,25 +11,26 @@ import { Input } from '@/components/ui/Input';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { SkeletonCard } from '@/components/ui/Spinner';
 import { documentsApi } from '@/lib/api';
-import { getErrorMessage } from '@/lib/utils';
+import { useLanguage } from '@/providers/LanguageProvider';
 import type { DocumentStatus } from '@/types';
 
-const STATUS_TABS: Array<{ label: string; value: DocumentStatus | '' }> = [
-  { label: 'All',        value: '' },
-  { label: 'Indexed',    value: 'indexed' },
-  { label: 'Pending',    value: 'pending' },
-  { label: 'Processing', value: 'processing_ocr' },
-  { label: 'Error',      value: 'error' },
-  { label: 'Archived',   value: 'archived' },
-];
-
 export default function DocumentsPage() {
+  const { copy } = useLanguage();
   const qc = useQueryClient();
   const [showUpload, setShowUpload] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | ''>('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  const STATUS_TABS: Array<{ label: string; value: DocumentStatus | '' }> = [
+    { label: copy.documents.status.all,        value: '' },
+    { label: copy.documents.status.indexed,    value: 'indexed' },
+    { label: copy.documents.status.pending,    value: 'pending' },
+    { label: copy.documents.status.processing, value: 'processing_ocr' },
+    { label: copy.documents.status.error,      value: 'error' },
+    { label: copy.documents.status.archived,   value: 'archived' },
+  ];
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['documents', { page, status: statusFilter, search }],
@@ -53,12 +54,25 @@ export default function DocumentsPage() {
 
   const archiveMutation = useMutation({
     mutationFn: (id: string) => documentsApi.archive(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: string) => documentsApi.restore(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, newName }: { id: string; newName: string }) => documentsApi.rename(id, newName),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+    },
   });
 
   const docs = data?.documents || [];
@@ -69,19 +83,19 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Documents</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.documents.title}</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
-            {meta?.total ?? '—'} files stored in your library
+            {meta?.total ?? '—'} {copy.documents.filesStored}
           </p>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-            Refresh
+            {copy.documents.refresh}
           </Button>
           <Button size="sm" onClick={() => setShowUpload(true)} className="shadow-md shadow-brand-500/20">
             <Plus className="w-5 h-5 ml-0" />
-            Add Document
+            {copy.documents.add}
           </Button>
         </div>
       </div>
@@ -90,7 +104,7 @@ export default function DocumentsPage() {
       <div className="flex flex-col xl:flex-row gap-5 mb-10">
         <div className="flex-1 max-w-xl">
           <Input
-            placeholder="Search by name, tags, or content…"
+            placeholder={copy.documents.searchPlaceholder}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             icon={<Search className="w-5 h-5 text-slate-400 dark:text-slate-500" />}
@@ -124,15 +138,15 @@ export default function DocumentsPage() {
           <div className="w-20 h-20 bg-surface-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-surface-200 dark:border-slate-700">
             <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600" />
           </div>
-          <h3 className="text-slate-900 dark:text-slate-100 font-extrabold text-xl tracking-tight">No results matched your search</h3>
+          <h3 className="text-slate-900 dark:text-slate-100 font-extrabold text-xl tracking-tight">{copy.documents.noResults}</h3>
           <p className="text-slate-500 dark:text-slate-400 mt-3 mb-8 max-w-md mx-auto font-medium">
             {search || statusFilter 
-              ? 'Try adjusting your keywords or changing the status filter to find what you are looking for.' 
-              : 'Your library is empty. Upload your first document to unlock AI-powered insights.'}
+              ? copy.documents.noResultsHelper
+              : copy.documents.emptyLibrary}
           </p>
           {!search && !statusFilter && (
             <Button onClick={() => setShowUpload(true)} size="lg" className="shadow-lg shadow-brand-500/20">
-              <Plus className="w-5 h-5 mr-1" /> Create First Index
+              <Plus className="w-5 h-5 mr-1" /> {copy.documents.createFirstIndex}
             </Button>
           )}
         </div>
@@ -146,6 +160,9 @@ export default function DocumentsPage() {
                 onDelete={(id) => setDeleteTarget(id)}
                 onArchive={(id) => archiveMutation.mutate(id)}
                 onRestore={(id) => restoreMutation.mutate(id)}
+                onRename={async (id, newName) => {
+                  await renameMutation.mutateAsync({ id, newName });
+                }}
               />
             ))}
           </div>
@@ -158,17 +175,17 @@ export default function DocumentsPage() {
                 disabled={!meta.hasPrev}
                 onClick={() => setPage((p) => p - 1)}
               >
-                Previous
+                {copy.documents.previous}
               </Button>
               <span className="text-sm font-bold text-slate-700 dark:text-slate-300 tabular-nums">
-                Page <span className="text-brand-600 dark:text-brand-400">{meta.page}</span> <span className="opacity-40">/</span> {meta.pages}
+                {copy.documents.pageOf} <span className="text-brand-600 dark:text-brand-400">{meta.page}</span> <span className="opacity-40">/</span> {meta.pages}
               </span>
               <Button
                 variant="secondary" size="sm"
                 disabled={!meta.hasNext}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Next
+                {copy.documents.next}
               </Button>
             </div>
           )}
@@ -176,7 +193,7 @@ export default function DocumentsPage() {
       )}
 
       {/* Upload modal */}
-      <Modal isOpen={showUpload} onClose={() => setShowUpload(false)} title="Upload Documents" className="max-w-2xl">
+      <Modal isOpen={showUpload} onClose={() => setShowUpload(false)} title={copy.documents.uploadTitle} className="max-w-2xl">
         <UploadZone
           onUploadComplete={() => {
             qc.invalidateQueries({ queryKey: ['documents'] });
@@ -192,9 +209,9 @@ export default function DocumentsPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
         isLoading={deleteMutation.isPending}
-        title="Delete Document"
-        message="Are you sure you want to permanently delete this document? This will also remove all extracted text, embeddings, and summaries."
-        confirmLabel="Delete"
+        title={copy.documents.deleteTitle}
+        message={copy.documents.deleteMessage}
+        confirmLabel={copy.documents.deleteConfirm}
         danger
       />
     </AppLayout>

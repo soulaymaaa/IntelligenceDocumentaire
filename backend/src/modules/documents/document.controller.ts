@@ -94,6 +94,40 @@ export const archiveDocument = asyncHandler(async (req: AuthRequest, res: Respon
   return successResponse(res, { document: doc }, 'Document archived');
 });
 
+export const restoreDocument = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const doc = await documentService.restoreDocument(req.params.id, req.userId!);
+
+  await logAction({
+    userId: req.userId!,
+    action: 'DOCUMENT_RESTORE',
+    resourceType: 'Document',
+    resourceId: req.params.id,
+  });
+
+  return successResponse(res, { document: doc }, 'Document restored');
+});
+
+export const renameDocument = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const schema = z.object({
+    originalName: z.string().min(1).max(255),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) throw new ValidationError('Invalid document name');
+
+  const doc = await documentService.renameDocument(req.params.id, req.userId!, parsed.data.originalName);
+
+  await logAction({
+    userId: req.userId!,
+    action: 'DOCUMENT_RENAME',
+    resourceType: 'Document',
+    resourceId: req.params.id,
+    metadata: { newName: parsed.data.originalName },
+  });
+
+  return successResponse(res, { document: doc }, 'Document renamed successfully');
+});
+
 export const runOcr = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
   // Validate ownership first
   const doc = await documentService.getDocument(req.params.id, req.userId!);
