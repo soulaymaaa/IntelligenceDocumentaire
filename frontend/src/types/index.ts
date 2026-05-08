@@ -24,8 +24,10 @@ export interface Document {
   summaryShort?: string;
   summaryDetailed?: string;
   summaryBullets?: string[];
+  translations?: Array<{ language: string; text: string }>;
   archived: boolean;
   errorMessage?: string;
+  ocrPdfPath?: string;
   createdAt: string;
   updatedAt: string;
 }

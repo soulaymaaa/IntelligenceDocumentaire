@@ -13,8 +13,13 @@ export interface IDocument extends Document {
   extractedText?: string;
   pageCount?: number;
   summary?: string;
+  summaryShort?: string;
+  summaryDetailed?: string;
+  summaryBullets?: string[];
+  translations?: Array<{ language: string; text: string }>;
   archived: boolean;
   errorMessage?: string;
+  ocrPdfPath?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,12 +71,35 @@ const documentSchema = new Schema<IDocument>(
       type: String,
       default: undefined,
     },
+    summaryShort: {
+      type: String,
+      default: undefined,
+    },
+    summaryDetailed: {
+      type: String,
+      default: undefined,
+    },
+    summaryBullets: {
+      type: [String],
+      default: undefined,
+    },
+    translations: {
+      type: [{
+        language: { type: String, required: true },
+        text: { type: String, required: true }
+      }],
+      default: [],
+    },
     archived: {
       type: Boolean,
       default: false,
       index: true,
     },
     errorMessage: {
+      type: String,
+      default: undefined,
+    },
+    ocrPdfPath: {
       type: String,
       default: undefined,
     },

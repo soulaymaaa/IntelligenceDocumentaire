@@ -11,13 +11,13 @@ import { logger } from '../utils/logger';
  * 3. OLLAMA — local, completely free (requires Ollama installed)
  */
 
-// Groq free models (no credits needed)
+// Groq models available to this account. Keep this list current because Groq decommissions model IDs.
 const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3-32b',
   'llama-3.1-8b-instant',
-  'mixtral-8x7b-32768',
-  'gemma-2-9b-it',
-  'qwen-2.5-32b',
+  'llama-3.3-70b-versatile',
 ];
 
 // OpenRouter free models (tested — these work WITHOUT credits on the account)
@@ -86,6 +86,7 @@ interface ChatParams {
   messages: Array<{ role: string; content: string }>;
   temperature?: number;
   max_tokens?: number;
+  response_format?: { type: 'json_object' | 'text' };
 }
 
 /**
@@ -93,6 +94,8 @@ interface ChatParams {
  * Returns the first successful response.
  */
 export const chatCompletion = async (params: ChatParams): Promise<string> => {
+  const providerErrors: Array<{ provider: string; model: string; status?: number; message: string }> = [];
+
   // 1. Try Groq (free, no credits needed)
   const groq = getGroqClient();
   if (groq) {
@@ -102,12 +105,19 @@ export const chatCompletion = async (params: ChatParams): Promise<string> => {
         logger.info(`LLM: used Groq model ${model}`);
         return result;
       } catch (err: any) {
+        logger.error(`LLM: Groq model ${model} failed: ${err.message} (Status: ${err.status})`);
+        providerErrors.push({
+          provider: 'Groq',
+          model,
+          status: err.status,
+          message: err.message || 'Unknown Groq error',
+        });
         if (err.status === 400) continue; // model not available, try next
+        if (err.status === 413) continue; // request too large for this model, try next
         if (err.status === 429) {
           logger.warn(`Groq model ${model} rate-limited, trying next`);
           continue;
         }
-        logger.warn(`Groq model ${model} failed: ${err.message}`);
       }
     }
   }
@@ -121,6 +131,12 @@ export const chatCompletion = async (params: ChatParams): Promise<string> => {
         logger.info(`LLM: used OpenRouter model ${model}`);
         return result;
       } catch (err: any) {
+        providerErrors.push({
+          provider: 'OpenRouter',
+          model,
+          status: err.status,
+          message: err.message || 'Unknown OpenRouter error',
+        });
         if (err.status === 402) {
           logger.warn(`OpenRouter model ${model} requires credits, trying next`);
           continue;
@@ -145,9 +161,39 @@ export const chatCompletion = async (params: ChatParams): Promise<string> => {
         logger.info(`LLM: used local Ollama model ${model}`);
         return result;
       } catch (err: any) {
+        providerErrors.push({
+          provider: 'Ollama',
+          model,
+          status: err.status,
+          message: err.message || 'Unknown Ollama error',
+        });
         logger.warn(`Ollama model ${model} failed: ${err.message}`);
       }
     }
+  }
+
+  const rateLimitError = providerErrors.find((error) => error.status === 429);
+  if (rateLimitError) {
+    throw new LLMError(
+      `${rateLimitError.provider} rate limit reached for ${rateLimitError.model}. Please wait a few minutes and try again, or configure another AI provider.`,
+      'rate_limit'
+    );
+  }
+
+  const requestTooLargeError = providerErrors.find((error) => error.status === 413);
+  if (requestTooLargeError) {
+    throw new LLMError(
+      `${requestTooLargeError.provider} rejected the request because it was too large. Try a smaller document or a provider with higher token limits.`,
+      'unavailable'
+    );
+  }
+
+  const lastProviderError = [...providerErrors].reverse().find((error) => error.provider !== 'Ollama');
+  if (lastProviderError) {
+    throw new LLMError(
+      `${lastProviderError.provider} model ${lastProviderError.model} failed: ${lastProviderError.message}`,
+      'unavailable'
+    );
   }
 
   // All providers exhausted
@@ -176,6 +222,7 @@ const attemptWithRetries = async (
         messages: params.messages as any,
         temperature: params.temperature ?? 0.1,
         max_tokens: params.max_tokens ?? 1000,
+        response_format: params.response_format as any,
       });
 
       const content = response.choices[0]?.message?.content?.trim();

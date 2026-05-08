@@ -27,11 +27,8 @@ const envSchema = z.object({
   AUTO_VERIFY: z.string().default('false').transform((v) => v === 'true'),
 
   // ── AI Providers (at least one must be configured) ───────────────────────
-  // Option 1: Groq — genuinely free, no credits (get key at https://console.groq.com)
   GROQ_API_KEY: z.string().optional(),
-  // Option 2: OpenRouter — free models, may need credits
   OPENROUTER_API_KEY: z.string().optional(),
-  // Option 3: Ollama — local, completely free (default: http://localhost:11434)
   OLLAMA_URL: z.string().default('http://localhost:11434'),
 });
 
@@ -44,4 +41,13 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+console.log('--------------------------------------------------');
+console.log('🤖 AI CONFIGURATION CHECK:');
+console.log('GROQ_API_KEY:', env.GROQ_API_KEY ? '✅ DETECTED' : '❌ MISSING');
+if (!env.GROQ_API_KEY && !env.OPENROUTER_API_KEY) {
+  console.warn('⚠️ WARNING: No AI API keys found. Summary feature will fail!');
+}
+console.log('--------------------------------------------------');
+
 export type Env = typeof env;

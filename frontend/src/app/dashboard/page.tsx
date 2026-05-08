@@ -47,6 +47,9 @@ const StatCard = ({
 
 export default function DashboardPage() {
   const { copy } = useLanguage();
+
+  if (!copy || !copy.dashboard) return null;
+
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: documentsApi.getDashboard,

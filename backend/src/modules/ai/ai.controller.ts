@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { generateSummary } from './summary.service';
+import { translateDocument } from './translation.service';
 import { askQuestion } from '../rag/rag.service';
 import { logAction } from '../audit/audit.service';
 import { asyncHandler, successResponse } from '../../utils/helpers';
@@ -14,6 +15,10 @@ const questionSchema = z.object({
   topK: z.number().min(1).max(10).optional().default(5),
 });
 
+const translationSchema = z.object({
+  targetLanguage: z.string().trim().min(2).max(80),
+});
+
 const handleAiError = (err: any): never => {
   // Custom LLMError from our provider layer
   if (err instanceof LLMError) {
@@ -21,6 +26,12 @@ const handleAiError = (err: any): never => {
       throw new BadRequestError(err.message);
     }
     if (err.type === 'no_credits') {
+      throw new BadRequestError(err.message);
+    }
+    if (err.type === 'rate_limit') {
+      throw new BadRequestError(err.message);
+    }
+    if (err.type === 'unavailable') {
       throw new BadRequestError(err.message);
     }
   }
@@ -51,7 +62,7 @@ export const summarizeDocument = asyncHandler(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
     try {
       const { id } = req.params;
-      const summary = await generateSummary(id, req.userId!);
+      const result = await generateSummary(id, req.userId!);
 
       await logAction({
         userId: req.userId!,
@@ -60,7 +71,34 @@ export const summarizeDocument = asyncHandler(
         resourceId: id,
       });
 
-      return successResponse(res, { summary }, 'Summary generated successfully');
+      return successResponse(res, { summary: result }, 'Summary generated successfully');
+    } catch (err) {
+      handleAiError(err);
+    }
+  }
+);
+
+export const translateDocumentHandler = asyncHandler(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const parsed = translationSchema.safeParse(req.body);
+
+      if (!parsed.success) throw new ValidationError('Target language is required');
+
+      const { targetLanguage } = parsed.data;
+
+      const translation = await translateDocument(id, targetLanguage, req.userId!);
+
+      await logAction({
+        userId: req.userId!,
+        action: 'DOCUMENT_TRANSLATED',
+        resourceType: 'Document',
+        resourceId: id,
+        metadata: { targetLanguage },
+      });
+
+      return successResponse(res, { translation }, 'Document translated successfully');
     } catch (err) {
       handleAiError(err);
     }

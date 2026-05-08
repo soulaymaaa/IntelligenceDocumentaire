@@ -1,4 +1,15 @@
 services:
+  mongo:
+    image: mongo:latest
+    container_name: intelligence_mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app_network
+
   backend:
     build:
       context: ./backend
@@ -12,11 +23,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      MONGODB_URI: mongodb://mongo:27017/docintel
       UPLOAD_DIR: /app/uploads
       USE_SIMPLE_QUEUE: 'true'
     volumes:
       - uploads_data:/app/uploads
       - logs_data:/app/logs
+    depends_on:
+      - mongo
     networks:
       - app_network
     healthcheck:
@@ -44,6 +58,7 @@ services:
 volumes:
   uploads_data:
   logs_data:
+  mongo_data:
 
 networks:
   app_network:

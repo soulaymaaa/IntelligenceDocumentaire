@@ -204,6 +204,15 @@ export const aiApi = {
     return extractData(res);
   },
 
+  translate: async (id: string, targetLanguage: string): Promise<string> => {
+    const res = await api.post<ApiResponse<{ translation: string }>>(
+      `/ai/documents/${id}/translate`,
+      { targetLanguage },
+      { timeout: 180000 }
+    );
+    return extractData(res).translation;
+  },
+
   askGlobal: async (question: string, topK = 5): Promise<RagAnswer> => {
     const res = await api.post<ApiResponse<RagAnswer>>('/ai/ask-global', { question, topK });
     return extractData(res);

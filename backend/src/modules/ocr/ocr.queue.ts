@@ -41,7 +41,7 @@ const processQueue = async (): Promise<void> => {
       // Index embeddings
       await indexDocument(job.documentId, extractedText);
       await updateDocumentStatus(job.documentId, 'indexed', { extractedText } as any);
-      logger.info(`Document indexed successfully: ${job.documentId}`);
+      logger.info(`OCR processing and indexing successful for document: ${job.documentId}`);
     } else {
       await updateDocumentStatus(job.documentId, 'error', {
         errorMessage: 'No text could be extracted from this document',

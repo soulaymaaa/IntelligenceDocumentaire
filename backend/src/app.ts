@@ -23,6 +23,8 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: false,
+  frameguard: false,
+  crossOriginEmbedderPolicy: false,
 }));
 
 // CORS
@@ -57,8 +59,12 @@ app.use(cookieParser());
 // Request logging
 app.use(requestLogger);
 
-// Static files for uploads (local dev)
-app.use('/uploads', express.static(path.join(process.cwd(), env.UPLOAD_DIR)));
+// Static files for uploads (local dev) with permissive headers for iframe preview
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(process.cwd(), env.UPLOAD_DIR)));
 
 // Health check
 app.get('/health', (_req, res) => {

@@ -8,6 +8,12 @@ import { ValidationError } from '../../utils/errors';
 import { AuthRequest } from '../../middleware/authenticate';
 import { env } from '../../config/env';
 import { scheduleOcr } from '../ocr/ocr.queue';
+import { logger } from '../../utils/logger';
+import {
+  createImagePdfPreview,
+  getImagePreviewPdfFilename,
+  isImageMimeType,
+} from './pdf-preview.service';
 
 export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const files = req.files as Express.Multer.File[];
@@ -15,6 +21,7 @@ export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Respon
 
   const created = await Promise.all(
     files.map(async (file) => {
+      const previewMetadata = await createPreviewMetadata(file);
       const doc = await documentService.createDocument({
         ownerId: req.userId!,
         filename: file.filename,
@@ -22,6 +29,7 @@ export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Respon
         mimeType: file.mimetype,
         size: file.size,
         storagePath: path.join(env.UPLOAD_DIR, file.filename),
+        ...previewMetadata,
       });
 
       // Schedule OCR immediately
@@ -41,6 +49,25 @@ export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Respon
 
   return successResponse(res, { documents: created }, `${created.length} document(s) uploaded`, 201);
 });
+
+const createPreviewMetadata = async (
+  file: Express.Multer.File
+): Promise<{ ocrPdfPath?: string; pageCount?: number }> => {
+  if (!isImageMimeType(file.mimetype)) return {};
+
+  const previewPdfFilename = getImagePreviewPdfFilename(file.filename);
+  const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
+  const imagePath = path.resolve(uploadDir, file.filename);
+  const previewPdfPath = path.resolve(uploadDir, previewPdfFilename);
+
+  try {
+    await createImagePdfPreview(imagePath, previewPdfPath);
+    return { ocrPdfPath: previewPdfFilename, pageCount: 1 };
+  } catch (error) {
+    logger.warn(`Image PDF preview generation failed for ${file.originalname}:`, error);
+    return {};
+  }
+};
 
 export const listDocuments = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const pageSchema = z.object({

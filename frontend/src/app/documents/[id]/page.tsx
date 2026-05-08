@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -21,6 +23,8 @@ import {
   X,
   Trash2,
   Undo2,
+  Languages,
+  Download,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ConversationPanel } from '@/components/ai/ConversationPanel';
@@ -34,7 +38,7 @@ import { formatBytes, formatDate, getDocumentPreviewUrl, getErrorMessage, highli
 import { useLanguage } from '@/providers/LanguageProvider';
 import type { Conversation, Document, SummaryPayload } from '@/types';
 
-type DetailTab = 'overview' | 'highlights' | 'summary' | 'chat';
+type DetailTab = 'overview' | 'highlights' | 'summary' | 'chat' | 'translate';
 type SummaryView = 'short' | 'detailed' | 'key_points';
 
 export default function DocumentDetailPage() {
@@ -45,9 +49,12 @@ export default function DocumentDetailPage() {
 
   const [tab, setTab] = useState<DetailTab>('overview');
   const [summaryView, setSummaryView] = useState<SummaryView>('short');
+  const [targetLanguage, setTargetLanguage] = useState('French');
   const [question, setQuestion] = useState('');
   const [showDelete, setShowDelete] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const translationRef = useRef<HTMLDivElement>(null);
 
   const { data: doc, isLoading, error } = useQuery<Document>({
     queryKey: ['document', id],
@@ -118,6 +125,11 @@ export default function DocumentDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['document', id] }),
   });
 
+  const translateMutation = useMutation({
+    mutationFn: (lang: string) => aiApi.translate(id, lang),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document', id] }),
+  });
+
   const renameMutation = useMutation({
     mutationFn: (newName: string) => documentsApi.rename(id, newName),
     onSuccess: () => {
@@ -174,18 +186,144 @@ export default function DocumentDetailPage() {
     },
   });
 
+  const downloadTranslationAsPdf = async () => {
+    if (!translationRef.current || !translatedText || !doc) return;
+    
+    setIsGeneratingPdf(true);
+    try {
+      const originalElement = translationRef.current;
+      
+      // Create a clone to avoid touching the real UI
+      const clone = originalElement.cloneNode(true) as HTMLElement;
+      
+      // Style the clone for PDF
+      clone.style.position = 'fixed';
+      clone.style.top = '-9999px';
+      clone.style.left = '-9999px';
+      clone.style.width = originalElement.offsetWidth + 'px';
+      clone.style.height = 'auto';
+      clone.style.backgroundColor = '#ffffff';
+      clone.style.color = '#000000';
+      clone.style.padding = '40px';
+      clone.style.borderRadius = '0px';
+      clone.style.border = 'none';
+      
+      // Target text inside clone
+      const pTag = clone.querySelector('p');
+      if (pTag) {
+        pTag.style.color = '#000000';
+        pTag.style.backgroundColor = 'transparent';
+      }
+      
+      document.body.appendChild(clone);
+
+      const canvas = await html2canvas(clone, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      
+      document.body.removeChild(clone);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: 'a4',
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const marginTop = 60;
+      const marginBottom = 60;
+      const marginSide = 40;
+      const contentWidth = pdfWidth - (marginSide * 2);
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
+      const pageContentHeight = pdfHeight - marginTop - marginBottom;
+      
+      let heightLeft = contentHeight;
+      let position = marginTop;
+      let pageNumber = 1;
+
+      const addHeader = (pNum: number) => {
+        pdf.setFontSize(14);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(`Traduction: ${doc.originalName}`, marginSide, 35);
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`${targetLanguageLabel} | DocIntel AI`, marginSide, 48);
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(marginSide, 52, pdfWidth - marginSide, 52);
+      };
+
+      const addFooter = (pNum: number) => {
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`Page ${pNum}`, pdfWidth / 2, pdfHeight - 25, { align: 'center' });
+      };
+
+      // First page
+      addHeader(pageNumber);
+      pdf.addImage(imgData, 'PNG', marginSide, position, contentWidth, contentHeight);
+      addFooter(pageNumber);
+      
+      heightLeft -= pageContentHeight;
+
+      // Remaining pages
+      while (heightLeft > 0) {
+        pdf.addPage();
+        pageNumber++;
+        addHeader(pageNumber);
+        position = marginTop - (contentHeight - heightLeft);
+        pdf.addImage(imgData, 'PNG', marginSide, position, contentWidth, contentHeight);
+        addFooter(pageNumber);
+        heightLeft -= pageContentHeight;
+      }
+
+      pdf.save(`traduction_${targetLanguage.toLowerCase()}_${doc.originalName.replace(/\.[^/.]+$/, "")}.pdf`);
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+      alert("Erreur lors de la génération du PDF. Veuillez réessayer.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   const summaryData = useMemo<SummaryPayload>(() => ({
     short: doc?.summaryShort || '',
     detailed: doc?.summaryDetailed || doc?.summary || '',
     keyPoints: doc?.summaryBullets || [],
   }), [doc]);
 
+  const translationLanguages = copy.documents.detail.translation.languages;
+  const activeTranslation = useMemo(
+    () => doc?.translations?.find(
+      (translation) => translation.language.toLowerCase() === targetLanguage.toLowerCase()
+    ),
+    [doc?.translations, targetLanguage]
+  );
+  const translatedText =
+    translateMutation.variables === targetLanguage
+      ? translateMutation.data || activeTranslation?.text || ''
+      : activeTranslation?.text || '';
+  const targetLanguageLabel =
+    translationLanguages.find((language) => language.value.toLowerCase() === targetLanguage.toLowerCase())?.label ||
+    targetLanguage;
+  const canTranslate = Boolean(doc?.extractedText?.trim());
+
   const activeAssistantMessage = useMemo(() => {
     const messages = activeConversation?.messages || [];
     return [...messages].reverse().find((message) => message.role === 'assistant');
   }, [activeConversation]);
 
-  const previewUrl = getDocumentPreviewUrl(doc?.filename);
+  const previewFilename = doc?.mimeType.startsWith('image/')
+    ? doc?.ocrPdfPath
+    : doc?.ocrPdfPath || doc?.filename;
+  const previewUrl = getDocumentPreviewUrl(previewFilename, undefined, doc?.updatedAt);
   const highlightTerms = activeAssistantMessage?.highlights?.flatMap((item) => item.matchedTerms) || [];
 
   if (isLoading || !doc) {
@@ -216,7 +354,10 @@ export default function DocumentDetailPage() {
   }
 
   const openSourcePage = (pageNumber?: number) => {
-    const url = getDocumentPreviewUrl(doc.filename, pageNumber);
+    const sourceFilename = doc.mimeType.startsWith('image/')
+      ? doc.ocrPdfPath
+      : doc.ocrPdfPath || doc.filename;
+    const url = getDocumentPreviewUrl(sourceFilename, pageNumber, doc.updatedAt);
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -419,6 +560,7 @@ export default function DocumentDetailPage() {
             { id: 'overview', label: copy.documents.detail.tabs.overview, icon: BookOpen },
             { id: 'highlights', label: copy.documents.detail.tabs.highlights, icon: Highlighter },
             { id: 'summary', label: copy.documents.detail.tabs.summary, icon: Sparkles },
+            { id: 'translate', label: copy.documents.detail.tabs.translate, icon: Languages },
             { id: 'chat', label: copy.documents.detail.tabs.chat, icon: FileSearch },
           ].map(({ id: tabId, label, icon: Icon }) => (
             <button
@@ -440,8 +582,16 @@ export default function DocumentDetailPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
             <Card className="border-surface-200">
               <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.documents.detail.overview.title}</h2>
-              <div className="mt-5 overflow-hidden rounded-3xl border border-surface-200 bg-slate-50">
-                {doc.mimeType === 'application/pdf' && previewUrl ? (
+              <div className="mt-5 relative overflow-hidden rounded-3xl border border-surface-200 bg-slate-50">
+                {doc.status === 'processing_ocr' && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+                    <Spinner size="lg" />
+                    <p className="mt-4 text-sm font-bold text-slate-800 animate-pulse">
+                      {copy.documents.detail.overview.scanning}
+                    </p>
+                  </div>
+                )}
+                {previewUrl ? (
                   <iframe
                     title={copy.documents.detail.overview.title}
                     src={previewUrl}
@@ -587,6 +737,138 @@ export default function DocumentDetailPage() {
 
               {summaryMutation.isError && (
                 <p className="mt-4 text-sm font-bold text-red-600">{getErrorMessage(summaryMutation.error)}</p>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {tab === 'translate' && (
+          <Card className="border-surface-200">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.documents.detail.translation.title}</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                  {copy.documents.detail.translation.description}
+                </p>
+              </div>
+
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[360px] sm:flex-row sm:items-end">
+                <label className="flex-1 text-sm font-bold text-slate-700 dark:text-slate-200">
+                  <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">
+                    {copy.documents.detail.translation.targetLanguage}
+                  </span>
+                  <select
+                    value={targetLanguage}
+                    onChange={(event) => setTargetLanguage(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-surface-200 bg-white px-4 text-sm font-bold text-slate-800 shadow-sm outline-none transition-colors focus:border-brand-500 dark:bg-slate-950 dark:text-slate-100"
+                  >
+                    {translationLanguages.map((language) => (
+                      <option key={language.value} value={language.value}>
+                        {language.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <Button
+                  className="h-11 justify-center rounded-xl px-5 font-bold"
+                  onClick={() => translateMutation.mutate(targetLanguage)}
+                  disabled={!canTranslate}
+                  isLoading={translateMutation.isPending}
+                >
+                  <Languages className="w-4 h-4" />
+                  {copy.documents.detail.translation.translate}
+                </Button>
+              </div>
+            </div>
+
+            {(doc.translations || []).length > 0 && (
+              <div className="mt-6">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">
+                  {copy.documents.detail.translation.available}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(doc.translations || []).map((translation, index) => {
+                    const label =
+                      translationLanguages.find((language) => language.value.toLowerCase() === translation.language.toLowerCase())?.label ||
+                      translation.language;
+
+                    return (
+                      <button
+                        key={`${translation.language}-${index}`}
+                        onClick={() => setTargetLanguage(translation.language)}
+                        className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+                          translation.language.toLowerCase() === targetLanguage.toLowerCase()
+                            ? 'border-brand-500/30 bg-brand-50 text-brand-700 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-300'
+                            : 'border-surface-200 bg-white text-slate-600 hover:bg-surface-50 dark:bg-slate-950 dark:text-slate-300'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6">
+              {!canTranslate ? (
+                <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-6 py-12 text-center">
+                  <AlertTriangle className="mx-auto w-10 h-10 text-amber-500" />
+                  <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">{copy.documents.detail.translation.noText}</p>
+                  <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {copy.documents.detail.translation.noTextHelper}
+                  </p>
+                </div>
+              ) : translateMutation.isPending && translateMutation.variables === targetLanguage ? (
+                <div className="flex min-h-[260px] flex-col items-center justify-center rounded-3xl border border-surface-200 bg-surface-50">
+                  <Spinner size="lg" />
+                  <p className="mt-4 text-sm font-bold text-slate-600 dark:text-slate-300">
+                    {copy.documents.detail.translation.inProgress}
+                  </p>
+                </div>
+              ) : translatedText ? (
+                <div className="rounded-3xl border border-brand-500/15 bg-gradient-to-br from-brand-50/80 to-white px-6 py-6 dark:border-brand-500/25 dark:from-slate-950/90 dark:to-slate-900/90">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-600 dark:text-cyan-400">
+                      {copy.documents.detail.translation.result} - {targetLanguageLabel}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      {activeTranslation && (
+                        <span className="rounded-full bg-green-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-green-700 dark:bg-green-500/10 dark:text-green-300">
+                          {copy.documents.detail.translation.cached}
+                        </span>
+                      )}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest bg-white/50 hover:bg-white dark:bg-white/5 dark:hover:bg-white/10"
+                        onClick={downloadTranslationAsPdf}
+                        isLoading={isGeneratingPdf}
+                      >
+                        <Download className="w-3 h-3 mr-1" />
+                        {copy.documents.detail.translation.download}
+                      </Button>
+                    </div>
+                  </div>
+                  <div ref={translationRef} className="p-4 rounded-2xl bg-white/40 dark:bg-black/20">
+                    <p className="whitespace-pre-wrap text-sm font-medium leading-8 text-slate-800 dark:text-slate-100">
+                      {translatedText}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-6 py-12 text-center">
+                  <Languages className="mx-auto w-10 h-10 text-slate-300" />
+                  <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">{copy.documents.detail.translation.empty}</p>
+                  <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {copy.documents.detail.translation.emptyHelper}
+                  </p>
+                </div>
+              )}
+
+              {translateMutation.isError && (
+                <p className="mt-4 text-sm font-bold text-red-600">{getErrorMessage(translateMutation.error)}</p>
               )}
             </div>
           </Card>

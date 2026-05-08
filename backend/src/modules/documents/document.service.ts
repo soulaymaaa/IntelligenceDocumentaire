@@ -4,7 +4,14 @@ import { deleteFile } from '../uploads/upload.middleware';
 import { NotFoundError, ForbiddenError } from '../../utils/errors';
 import { paginationMeta } from '../../utils/helpers';
 import path from 'path';
+import fs from 'fs';
 import { env } from '../../config/env';
+import { logger } from '../../utils/logger';
+import {
+  createImagePdfPreview,
+  getImagePreviewPdfFilename,
+  isImageMimeType,
+} from './pdf-preview.service';
 
 interface ListDocumentsParams {
   ownerId: string;
@@ -40,7 +47,7 @@ export const getDocument = async (id: string, ownerId: string): Promise<IDocumen
   const doc = await DocumentModel.findById(id).select('-__v').lean().exec();
   if (!doc) throw new NotFoundError('Document');
   if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
-  return doc as unknown as IDocument;
+  return ensureImagePreview(doc as unknown as IDocument);
 };
 
 export const createDocument = async (data: {
@@ -50,6 +57,8 @@ export const createDocument = async (data: {
   mimeType: string;
   size: number;
   storagePath: string;
+  ocrPdfPath?: string;
+  pageCount?: number;
 }): Promise<IDocument> => {
   const doc = await DocumentModel.create({
     ...data,
@@ -100,9 +109,19 @@ export const deleteDocument = async (id: string, ownerId: string): Promise<void>
   if (!doc) throw new NotFoundError('Document');
   if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
 
-  // Delete physical file
-  const absolutePath = path.resolve(process.cwd(), env.UPLOAD_DIR, doc.filename);
-  deleteFile(absolutePath);
+  const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
+  const filenamesToDelete = new Set<string>([doc.filename]);
+  if (doc.ocrPdfPath) filenamesToDelete.add(doc.ocrPdfPath);
+  if (isImageMimeType(doc.mimeType)) {
+    filenamesToDelete.add(getImagePreviewPdfFilename(doc.filename));
+    filenamesToDelete.add(`${path.parse(doc.filename).name}_scan.pdf`);
+    filenamesToDelete.add(`${path.parse(doc.filename).name}_preview.pdf`);
+    filenamesToDelete.add(`enhanced_${doc.filename}`);
+  }
+
+  filenamesToDelete.forEach((filename) => {
+    deleteFile(path.resolve(uploadDir, filename));
+  });
 
   // Delete all chunks/embeddings
   await DocumentChunkModel.deleteMany({ documentId: id });
@@ -133,4 +152,43 @@ export const getDashboardStats = async (ownerId: string) => {
   ]);
 
   return { total, indexed, pending, errors, archived, recent };
+};
+
+const ensureImagePreview = async (doc: IDocument): Promise<IDocument> => {
+  if (!isImageMimeType(doc.mimeType)) return doc;
+
+  const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
+  const imagePath = path.resolve(uploadDir, doc.filename);
+  const previewFilename = getImagePreviewPdfFilename(doc.filename);
+  const previewPath = path.resolve(uploadDir, previewFilename);
+
+  if (!fs.existsSync(imagePath)) return doc;
+
+  const shouldGenerate =
+    doc.ocrPdfPath !== previewFilename ||
+    !fs.existsSync(previewPath) ||
+    fs.statSync(imagePath).mtimeMs > fs.statSync(previewPath).mtimeMs;
+
+  if (!shouldGenerate) return doc;
+
+  try {
+    await createImagePdfPreview(imagePath, previewPath);
+    const updated = await DocumentModel.findByIdAndUpdate(
+      doc._id,
+      {
+        ocrPdfPath: previewFilename,
+        pageCount: 1,
+      },
+      { new: true }
+    ).select('-__v').lean().exec();
+
+    return (updated as unknown as IDocument) || {
+      ...doc,
+      ocrPdfPath: previewFilename,
+      pageCount: 1,
+    };
+  } catch (error) {
+    logger.warn(`Unable to refresh image PDF preview for ${doc.originalName}:`, error);
+    return doc;
+  }
 };
