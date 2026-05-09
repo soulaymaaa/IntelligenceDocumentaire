@@ -5,8 +5,8 @@ import { logger } from '../../utils/logger';
 import { format, addDays } from 'date-fns';
 
 export const initReminderJob = () => {
-  // Run every hour
-  cron.schedule('0 * * * *', async () => {
+  // Run every minute for testing (can be changed back later)
+  cron.schedule('* * * * *', async () => {
     logger.info('Running planner reminder job...');
     
     try {
