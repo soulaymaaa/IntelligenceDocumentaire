@@ -10,6 +10,7 @@ import { NotFoundError } from '../../utils/errors';
 const officeparser = require('officeparser');
 import mammoth from 'mammoth';
 import PDFDocument from 'pdfkit';
+import AdmZip from 'adm-zip';
 import {
   createImagePdfPreview,
   getImagePreviewPdfFilename,
@@ -40,6 +41,38 @@ const extractTextFromWord = async (filePath: string): Promise<string> => {
   }
 };
 
+const extractTextFromPptxFallback = (filePath: string): string => {
+  try {
+    const zip = new AdmZip(filePath);
+    const zipEntries = zip.getEntries();
+    let fullText = '';
+
+    // PPTX stores text in ppt/slides/slideN.xml
+    const slideEntries = zipEntries
+      .filter(entry => entry.entryName.startsWith('ppt/slides/slide') && entry.entryName.endsWith('.xml'))
+      .sort((a, b) => a.entryName.localeCompare(b.entryName, undefined, { numeric: true }));
+
+    for (const entry of slideEntries) {
+      const content = entry.getData().toString('utf8');
+      // Simple regex to extract text content between <a:t> tags
+      const textMatches = content.match(/<a:t>([^<]+)<\/a:t>/g);
+      if (textMatches) {
+        const slideText = textMatches.map(m => m.replace(/<\/?a:t>/g, '')).join(' ');
+        fullText += slideText + '\n\n';
+      }
+    }
+
+    if (fullText.trim().length > 0) {
+      logger.info(`Fallback PPTX extraction successful: ${fullText.length} characters`);
+      return fullText.trim();
+    }
+    return '';
+  } catch (error) {
+    logger.error(`Fallback PPTX extraction failed for ${filePath}:`, error);
+    return '';
+  }
+};
+
 const extractTextFromOffice = async (filePath: string, mimeType: string): Promise<string> => {
   if (isWordDocx(mimeType)) {
     return extractTextFromWord(filePath);
@@ -60,11 +93,21 @@ const extractTextFromOffice = async (filePath: string, mimeType: string): Promis
         reject(parseErr);
       }
     });
-    logger.info(`Office text extracted: ${text?.length || 0} characters from ${path.basename(filePath)}`);
-    return text || '';
+    
+    if (text && text.trim().length > 0) {
+      logger.info(`Office text extracted: ${text.length} characters from ${path.basename(filePath)}`);
+      return text;
+    }
+    
+    throw new Error('Empty text extracted by OfficeParser');
   } catch (error: any) {
-    logger.error(`Office parsing failed for ${filePath}: ${error.message || error}`, error);
-    // Return empty string instead of throwing to prevent process crash if unhandled later
+    logger.warn(`OfficeParser failed for ${filePath}, attempting fallback extraction...`);
+    
+    // Fallback for PPTX if officeparser fails
+    if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+      return extractTextFromPptxFallback(filePath);
+    }
+    
     return '';
   }
 };
