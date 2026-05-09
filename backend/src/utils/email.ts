@@ -150,3 +150,44 @@ export const sendPasswordResetEmail = async (to: string, code: string): Promise<
     intro: 'Use the code below to continue resetting your password:',
     expiryNote: 'This code expires in 15 minutes.',
   });
+
+export const sendReminderEmail = async (
+  to: string, 
+  taskText: string, 
+  taskDate: string
+): Promise<VerificationEmailResult> => {
+  try {
+    const { transportConfig, transporter } = await buildTransport();
+
+    const info = await transporter.sendMail({
+      from: env.SMTP_FROM || transportConfig.auth.user,
+      to,
+      subject: `Rappel : Tâche pour demain`,
+      text: `Ceci est un rappel pour votre tâche prévue demain (${taskDate}) : ${taskText}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; color: #1e293b;">
+          <h2 style="color: #2563eb; margin-top: 0;">Rappel de tâche</h2>
+          <p>Bonjour,</p>
+          <p>Ceci est un rappel automatique pour votre tâche prévue <strong>demain</strong> (${taskDate}) :</p>
+          <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 16px; margin: 20px 0; font-size: 16px; font-weight: bold;">
+            ${taskText}
+          </div>
+          <p>N'oubliez pas de consulter votre planificateur pour gérer vos tâches.</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #64748b;">Intelligence Documentaire - Votre assistant intelligent</p>
+        </div>
+      `,
+    });
+
+    logger.info(`Reminder email sent to ${to} for task: ${taskText}`);
+
+    const previewUrl = nodemailer.getTestMessageUrl(info as any);
+    return {
+      deliveredToInbox: !previewUrl,
+      previewUrl: previewUrl || undefined,
+    };
+  } catch (error) {
+    logger.error('Failed to send reminder email:', error);
+    return { deliveredToInbox: false };
+  }
+};

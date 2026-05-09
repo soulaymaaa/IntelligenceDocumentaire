@@ -12,6 +12,7 @@ export interface User {
 export interface Document {
   _id: string;
   ownerId: string;
+  folderId?: string | null;
   filename: string;
   originalName: string;
   mimeType: string;
@@ -24,10 +25,21 @@ export interface Document {
   summaryShort?: string;
   summaryDetailed?: string;
   summaryBullets?: string[];
+  mindMap?: MindMapPayload;
   translations?: Array<{ language: string; text: string }>;
   archived: boolean;
   errorMessage?: string;
   ocrPdfPath?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DocumentFolder {
+  _id: string;
+  ownerId: string;
+  name: string;
+  color: string;
+  documentCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -82,6 +94,19 @@ export interface SummaryPayload {
   short: string;
   detailed: string;
   keyPoints: string[];
+}
+
+export interface MindMapNode {
+  title: string;
+  summary?: string;
+  children?: MindMapNode[];
+}
+
+export interface MindMapPayload {
+  title: string;
+  summary?: string;
+  root: MindMapNode;
+  generatedAt?: string;
 }
 
 export interface ConversationMessage {

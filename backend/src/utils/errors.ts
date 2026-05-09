@@ -48,3 +48,9 @@ export class BadRequestError extends AppError {
     super(message, 400, 'BAD_REQUEST');
   }
 }
+
+export class PasswordReusedError extends AppError {
+  constructor(message = 'Please choose a password you have not used before') {
+    super(message, 400, 'PASSWORD_REUSED');
+  }
+}

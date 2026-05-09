@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, FileText, Search, LogOut, Settings,
+  LayoutDashboard, FileText, Search, LogOut, Settings, FolderClosed, Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -30,6 +30,8 @@ export const Sidebar = ({
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: copy.common.dashboard },
+    { href: '/planner', icon: Calendar, label: copy.common.calendar },
+    { href: '/folders', icon: FolderClosed, label: copy.documents.folders.title },
     { href: '/documents', icon: FileText, label: copy.common.documents },
     { href: '/search', icon: Search, label: copy.common.semanticSearch },
     { href: '/settings', icon: Settings, label: copy.common.settings },
@@ -154,6 +156,7 @@ export const Sidebar = ({
         onDoubleClick={resetWidth}
         className="absolute right-[-3px] top-0 h-full w-1.5 cursor-col-resize outline-none transition-colors hover:bg-brand-500/40 focus-visible:bg-brand-500/50"
       />
+
     </aside>
   );
 };

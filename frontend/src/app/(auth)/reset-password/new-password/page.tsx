@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageToggle } from '@/components/layout/LanguageToggle';
-import { getErrorMessage } from '@/lib/utils';
+import { getApiErrorCode, getErrorMessage } from '@/lib/utils';
 import { useLanguage } from '@/providers/LanguageProvider';
 
 function NewPasswordContent() {
@@ -73,7 +73,7 @@ function NewPasswordContent() {
       setSuccess('Password reset successfully. Redirecting to login...');
       setTimeout(() => router.push(`/login?email=${encodeURIComponent(email)}`), 1200);
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getApiErrorCode(err) === 'PASSWORD_REUSED' ? copy.auth.passwordHistoryError : getErrorMessage(err));
       setIsLoading(false);
     }
   };

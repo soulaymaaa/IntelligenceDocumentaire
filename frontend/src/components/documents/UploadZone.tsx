@@ -18,15 +18,24 @@ interface UploadFile {
 
 interface UploadZoneProps {
   onUploadComplete?: () => void;
+  folderId?: string | null;
+  folderName?: string;
 }
 
 const ACCEPTED_TYPES = {
   'application/pdf': ['.pdf'],
   'image/jpeg': ['.jpg', '.jpeg'],
   'image/png': ['.png'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'application/msword': ['.doc'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'application/vnd.ms-excel': ['.xls'],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'application/vnd.ms-powerpoint': ['.ppt'],
+  'text/plain': ['.txt'],
 };
 
-export const UploadZone = ({ onUploadComplete }: UploadZoneProps) => {
+export const UploadZone = ({ onUploadComplete, folderId, folderName }: UploadZoneProps) => {
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -77,7 +86,7 @@ export const UploadZone = ({ onUploadComplete }: UploadZoneProps) => {
             f.status === 'uploading' ? { ...f, progress } : f
           )
         );
-      });
+      }, folderId);
 
       setFiles((prev) =>
         prev.map((f) =>
@@ -109,6 +118,12 @@ export const UploadZone = ({ onUploadComplete }: UploadZoneProps) => {
 
   return (
     <div className="space-y-4">
+      {folderName && (
+        <div className="rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm font-bold text-brand-700">
+          Destination: {folderName}
+        </div>
+      )}
+
       {/* Drop zone */}
       <div
         {...getRootProps()}
@@ -140,8 +155,8 @@ export const UploadZone = ({ onUploadComplete }: UploadZoneProps) => {
           </div>
           <div className="flex items-center gap-3 text-[10px] font-extrabold tracking-widest uppercase">
             <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 shadow-sm">PDF</span>
-            <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 shadow-sm">JPG</span>
-            <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 shadow-sm">PNG</span>
+            <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 shadow-sm">IMAGE</span>
+            <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 shadow-sm">OFFICE</span>
             <span className="text-slate-400 ml-2 font-bold lowercase tracking-normal">Max 50 MB per file</span>
           </div>
         </div>

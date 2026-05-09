@@ -14,6 +14,7 @@ import {
   ExternalLink,
   FileSearch,
   FileText,
+  GitBranch,
   Highlighter,
   RefreshCw,
   Scan,
@@ -36,9 +37,9 @@ import { Spinner } from '@/components/ui/Spinner';
 import { documentsApi, aiApi, conversationsApi } from '@/lib/api';
 import { formatBytes, formatDate, getDocumentPreviewUrl, getErrorMessage, highlightText } from '@/lib/utils';
 import { useLanguage } from '@/providers/LanguageProvider';
-import type { Conversation, Document, SummaryPayload } from '@/types';
+import type { Conversation, Document, MindMapNode, MindMapPayload, SummaryPayload } from '@/types';
 
-type DetailTab = 'overview' | 'highlights' | 'summary' | 'chat' | 'translate';
+type DetailTab = 'overview' | 'highlights' | 'summary' | 'mind_map' | 'chat' | 'translate';
 type SummaryView = 'short' | 'detailed' | 'key_points';
 
 export default function DocumentDetailPage() {
@@ -122,6 +123,11 @@ export default function DocumentDetailPage() {
 
   const summaryMutation = useMutation({
     mutationFn: (mode: 'short' | 'detailed' | 'key_points' | 'all') => aiApi.generateSummary(id, mode),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document', id] }),
+  });
+
+  const mindMapMutation = useMutation({
+    mutationFn: () => aiApi.generateMindMap(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['document', id] }),
   });
 
@@ -222,7 +228,7 @@ export default function DocumentDetailPage() {
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-      });
+      } as Parameters<typeof html2canvas>[1]);
       
       document.body.removeChild(clone);
 
@@ -241,7 +247,9 @@ export default function DocumentDetailPage() {
       const marginSide = 40;
       const contentWidth = pdfWidth - (marginSide * 2);
       
-      const imgProps = pdf.getImageProperties(imgData);
+      const imgProps = (pdf as jsPDF & {
+        getImageProperties: (imageData: string) => { width: number; height: number };
+      }).getImageProperties(imgData);
       const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
       const pageContentHeight = pdfHeight - marginTop - marginBottom;
       
@@ -314,6 +322,8 @@ export default function DocumentDetailPage() {
     translationLanguages.find((language) => language.value.toLowerCase() === targetLanguage.toLowerCase())?.label ||
     targetLanguage;
   const canTranslate = Boolean(doc?.extractedText?.trim());
+  const canGenerateMindMap = Boolean(doc?.extractedText?.trim());
+  const mindMapData = mindMapMutation.data || doc?.mindMap || null;
 
   const activeAssistantMessage = useMemo(() => {
     const messages = activeConversation?.messages || [];
@@ -560,6 +570,7 @@ export default function DocumentDetailPage() {
             { id: 'overview', label: copy.documents.detail.tabs.overview, icon: BookOpen },
             { id: 'highlights', label: copy.documents.detail.tabs.highlights, icon: Highlighter },
             { id: 'summary', label: copy.documents.detail.tabs.summary, icon: Sparkles },
+            { id: 'mind_map', label: copy.documents.detail.tabs.mindMap, icon: GitBranch },
             { id: 'translate', label: copy.documents.detail.tabs.translate, icon: Languages },
             { id: 'chat', label: copy.documents.detail.tabs.chat, icon: FileSearch },
           ].map(({ id: tabId, label, icon: Icon }) => (
@@ -591,15 +602,32 @@ export default function DocumentDetailPage() {
                     </p>
                   </div>
                 )}
-                {previewUrl ? (
+                {(doc?.mimeType === 'application/pdf' || doc?.mimeType?.startsWith('image/') || !!doc?.ocrPdfPath) && previewUrl ? (
                   <iframe
                     title={copy.documents.detail.overview.title}
                     src={previewUrl}
                     className="h-[720px] w-full bg-white"
                   />
                 ) : (
-                  <div className="flex h-[320px] items-center justify-center text-sm font-medium text-slate-500">
-                    {copy.documents.detail.overview.pdfOnly}
+                  <div className="flex flex-col h-[420px] items-center justify-center text-center p-8 bg-slate-50 dark:bg-slate-900/50">
+                    <div className="w-20 h-20 rounded-3xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700 mb-6">
+                      <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-2">
+                      Document Office
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mb-6">
+                      L'aperçu direct n'est pas disponible, mais nous pouvons générer une version PDF de lecture.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      onClick={() => ocrMutation.mutate()}
+                      isLoading={ocrMutation.isPending}
+                      className="rounded-xl"
+                    >
+                      <Scan className="w-4 h-4" />
+                      Générer l'aperçu PDF
+                    </Button>
                   </div>
                 )}
               </div>
@@ -737,6 +765,61 @@ export default function DocumentDetailPage() {
 
               {summaryMutation.isError && (
                 <p className="mt-4 text-sm font-bold text-red-600">{getErrorMessage(summaryMutation.error)}</p>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {tab === 'mind_map' && (
+          <Card className="border-surface-200">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{copy.documents.detail.mindMap.title}</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                  {copy.documents.detail.mindMap.description}
+                </p>
+              </div>
+              <Button
+                className="h-11 justify-center rounded-xl px-5 font-bold"
+                onClick={() => mindMapMutation.mutate()}
+                disabled={!canGenerateMindMap}
+                isLoading={mindMapMutation.isPending}
+              >
+                <GitBranch className="w-4 h-4" />
+                {mindMapData ? copy.documents.detail.mindMap.regenerate : copy.documents.detail.mindMap.generate}
+              </Button>
+            </div>
+
+            <div className="mt-6">
+              {!canGenerateMindMap ? (
+                <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-6 py-12 text-center">
+                  <AlertTriangle className="mx-auto w-10 h-10 text-amber-500" />
+                  <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">{copy.documents.detail.mindMap.noText}</p>
+                  <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {copy.documents.detail.mindMap.noTextHelper}
+                  </p>
+                </div>
+              ) : mindMapMutation.isPending ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-surface-200 bg-surface-50">
+                  <Spinner size="lg" />
+                  <p className="mt-4 text-sm font-bold text-slate-600 dark:text-slate-300">
+                    {copy.documents.detail.mindMap.inProgress}
+                  </p>
+                </div>
+              ) : mindMapData ? (
+                <MindMapCanvas mindMap={mindMapData} />
+              ) : (
+                <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-6 py-12 text-center">
+                  <GitBranch className="mx-auto w-10 h-10 text-slate-300" />
+                  <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">{copy.documents.detail.mindMap.empty}</p>
+                  <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {copy.documents.detail.mindMap.emptyHelper}
+                  </p>
+                </div>
+              )}
+
+              {mindMapMutation.isError && (
+                <p className="mt-4 text-sm font-bold text-red-600">{getErrorMessage(mindMapMutation.error)}</p>
               )}
             </div>
           </Card>
@@ -984,6 +1067,122 @@ const EmptySummary = ({
         <Sparkles className="w-4 h-4" />
         {copy.documents.detail.summary.generate}
       </button>
+    </div>
+  );
+};
+
+const MindMapCanvas = ({ mindMap }: { mindMap: MindMapPayload }) => {
+  const root: MindMapNode = mindMap.root || {
+    title: mindMap.title,
+    summary: mindMap.summary,
+    children: [],
+  };
+  const branches = root.children || [];
+
+  return (
+    <div className="rounded-3xl border border-surface-200 bg-gradient-to-br from-slate-50 via-white to-cyan-50/60 p-4 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+      <div className="mx-auto max-w-3xl rounded-3xl border border-cyan-500/25 bg-cyan-500 px-5 py-5 text-slate-950 shadow-xl shadow-cyan-500/10 dark:bg-cyan-400">
+        <div className="flex items-start gap-3">
+          <div className="mt-1 rounded-2xl bg-white/80 p-2 text-cyan-700">
+            <GitBranch className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xl font-black leading-tight">{root.title || mindMap.title}</p>
+            {(root.summary || mindMap.summary) && (
+              <p className="mt-2 text-sm font-semibold leading-7 text-slate-800">
+                {root.summary || mindMap.summary}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {branches.length > 0 && (
+        <>
+          <div className="mx-auto h-8 w-px bg-cyan-500/40" />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {branches.map((branch, index) => (
+              <MindMapBranch key={`${branch.title}-${index}`} branch={branch} index={index} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const mindMapColors = [
+  'border-cyan-200 bg-cyan-50 text-cyan-950 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-100',
+  'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100',
+  'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100',
+  'border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100',
+  'border-indigo-200 bg-indigo-50 text-indigo-950 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-100',
+];
+
+const MindMapBranch = ({
+  branch,
+  index,
+}: {
+  branch: MindMapNode;
+  index: number;
+}) => {
+  const children = branch.children || [];
+  const colorClass = mindMapColors[index % mindMapColors.length];
+
+  return (
+    <div className={`rounded-2xl border p-4 shadow-sm ${colorClass}`}>
+      <div className="flex items-start gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/80 text-sm font-black shadow-sm dark:bg-white/10">
+          {index + 1}
+        </span>
+        <div className="min-w-0">
+          <p className="text-base font-black leading-snug">{branch.title}</p>
+          {branch.summary && (
+            <p className="mt-2 text-sm font-semibold leading-6 opacity-75">
+              {branch.summary}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {children.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {children.map((child, childIndex) => (
+            <MindMapChild key={`${child.title}-${childIndex}`} node={child} depth={0} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MindMapChild = ({ node, depth }: { node: MindMapNode; depth: number }) => {
+  const children = node.children || [];
+
+  return (
+    <div className={`${depth > 0 ? 'ml-4 border-l border-current/20 pl-3' : ''}`}>
+      <div className="rounded-xl border border-current/10 bg-white/70 px-3 py-2 text-slate-800 shadow-sm dark:bg-slate-950/40 dark:text-slate-100">
+        <p className="text-sm font-black leading-snug">{node.title}</p>
+        {node.summary && (
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">
+            {node.summary}
+          </p>
+        )}
+      </div>
+
+      {children.length > 0 && depth < 2 && (
+        <div className="mt-2 space-y-2">
+          {children.map((child, index) => (
+            <MindMapChild key={`${child.title}-${index}`} node={child} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+
+      {children.length > 0 && depth >= 2 && (
+        <p className="mt-2 rounded-lg bg-white/50 px-3 py-2 text-xs font-bold opacity-70 dark:bg-white/5">
+          + {children.length}
+        </p>
+      )}
     </div>
   );
 };

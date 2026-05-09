@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { useAuth } from '@/lib/auth-context';
 import { PageLoader } from '@/components/ui/Spinner';
+import { cn } from '@/lib/utils';
 
 const DEFAULT_SIDEBAR_WIDTH = 240;
 const MIN_SIDEBAR_WIDTH = 80;
@@ -14,7 +15,7 @@ const SIDEBAR_STORAGE_KEY = 'docintel_sidebar_width';
 
 const clampSidebarWidth = (width: number) => Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width));
 
-export const AppLayout = ({ children }: { children: React.ReactNode }) => {
+export const AppLayout = ({ children, minimalTopBar = false }: { children: React.ReactNode, minimalTopBar?: boolean }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
@@ -43,8 +44,11 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen bg-surface">
       <Sidebar width={sidebarWidth} onResize={setSidebarWidth} />
-      <TopBar sidebarWidth={sidebarWidth} />
-      <main className="pt-[108px] min-h-screen transition-[margin] duration-150" style={{ marginLeft: sidebarWidth }}>
+      <TopBar sidebarWidth={sidebarWidth} minimal={minimalTopBar} />
+      <main 
+        className={cn("min-h-screen transition-[margin,padding] duration-150", minimalTopBar ? "pt-12" : "pt-[108px]")} 
+        style={{ marginLeft: sidebarWidth }}
+      >
         <div className="p-5 animate-fade-in">{children}</div>
       </main>
     </div>

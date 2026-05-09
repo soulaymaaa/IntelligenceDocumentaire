@@ -40,6 +40,14 @@ export function getErrorMessage(error: unknown): string {
   return 'An unexpected error occurred';
 }
 
+export function getApiErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosErr = error as any;
+    return axiosErr.response?.data?.code;
+  }
+  return undefined;
+}
+
 export function getDocumentPreviewUrl(filename?: string, pageNumber?: number, cacheKey?: string): string | null {
   if (!filename) return null;
   // Using relative path to use Next.js rewrites and ensure same-origin for iframes

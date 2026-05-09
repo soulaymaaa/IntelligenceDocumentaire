@@ -73,6 +73,7 @@ const userSchema = new Schema<IUser>(
     toJSON: {
       transform: (_doc, ret: Record<string, unknown>) => {
         delete ret['passwordHash'];
+        delete ret['passwordHistory'];
         delete ret['__v'];
         return ret;
       },

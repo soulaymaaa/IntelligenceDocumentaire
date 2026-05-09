@@ -16,6 +16,8 @@ import documentRoutes from './modules/documents/document.routes';
 import searchRoutes from './modules/search/search.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import conversationRoutes from './modules/conversations/conversation.routes';
+import plannerRoutes from './modules/planner/planner.routes';
+import { initReminderJob } from './modules/planner/planner.service';
 
 const app = express();
 
@@ -77,6 +79,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/planner', plannerRoutes);
 
 // 404 handler
 app.use((_req, res) => {
@@ -94,6 +97,8 @@ const startServer = async () => {
 
     const server = app.listen(env.PORT, () => {
       logger.info(`Server running on port ${env.PORT} in ${env.NODE_ENV} mode`);
+      initReminderJob();
+      logger.info('Planner reminder job initialized');
     });
 
     // Graceful shutdown
@@ -107,6 +112,16 @@ const startServer = async () => {
 
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
+
+    // Handle unexpected errors without crashing
+    process.on('uncaughtException', (error) => {
+      logger.error('Uncaught Exception:', error);
+      // In production you might want to shutdown gracefully after some cleanup
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    });
 
   } catch (error) {
     logger.error('Failed to start server:', error);

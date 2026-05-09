@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/lib/auth-context';
 import { authApi } from '@/lib/api';
-import { getErrorMessage } from '@/lib/utils';
+import { getApiErrorCode, getErrorMessage } from '@/lib/utils';
 import { useLanguage } from '@/providers/LanguageProvider';
 
 export default function SettingsPage() {
@@ -31,7 +31,7 @@ export default function SettingsPage() {
       setConfirmPassword('');
     },
     onError: (err) => {
-      setError(getErrorMessage(err));
+      setError(getApiErrorCode(err) === 'PASSWORD_REUSED' ? copy.settings.password.historyError : getErrorMessage(err));
       setMessage('');
     },
   });

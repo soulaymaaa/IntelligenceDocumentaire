@@ -4,6 +4,7 @@ export type DocumentStatus = 'pending' | 'processing_ocr' | 'indexed' | 'error' 
 
 export interface IDocument extends Document {
   ownerId: Types.ObjectId;
+  folderId?: Types.ObjectId | null;
   filename: string;
   originalName: string;
   mimeType: string;
@@ -16,6 +17,7 @@ export interface IDocument extends Document {
   summaryShort?: string;
   summaryDetailed?: string;
   summaryBullets?: string[];
+  mindMap?: unknown;
   translations?: Array<{ language: string; text: string }>;
   archived: boolean;
   errorMessage?: string;
@@ -30,6 +32,12 @@ const documentSchema = new Schema<IDocument>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    folderId: {
+      type: Schema.Types.ObjectId,
+      ref: 'DocumentFolder',
+      default: null,
+      index: true,
     },
     filename: {
       type: String,
@@ -83,6 +91,10 @@ const documentSchema = new Schema<IDocument>(
       type: [String],
       default: undefined,
     },
+    mindMap: {
+      type: Schema.Types.Mixed,
+      default: undefined,
+    },
     translations: {
       type: [{
         language: { type: String, required: true },
@@ -117,6 +129,7 @@ const documentSchema = new Schema<IDocument>(
 
 documentSchema.index({ ownerId: 1, status: 1 });
 documentSchema.index({ ownerId: 1, archived: 1 });
+documentSchema.index({ ownerId: 1, folderId: 1 });
 documentSchema.index({ ownerId: 1, originalName: 'text' });
 
 export const DocumentModel: Model<IDocument> = mongoose.model<IDocument>('Document', documentSchema);

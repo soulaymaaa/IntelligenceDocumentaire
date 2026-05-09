@@ -14,6 +14,12 @@ router.get('/dashboard', documentController.getDashboard);
 // Upload — supports multiple files
 router.post('/upload', upload.array('files', 10), documentController.uploadDocuments);
 
+// Folders
+router.get('/folders', documentController.listFolders);
+router.post('/folders', documentController.createFolder);
+router.patch('/folders/:id', documentController.renameFolder);
+router.delete('/folders/:id', documentController.deleteFolder);
+
 // CRUD
 router.get('/', documentController.listDocuments);
 router.get('/:id', documentController.getDocument);
@@ -21,6 +27,7 @@ router.delete('/:id', documentController.deleteDocument);
 router.patch('/:id/archive', documentController.archiveDocument);
 router.patch('/:id/restore', documentController.restoreDocument);
 router.patch('/:id/rename', documentController.renameDocument);
+router.patch('/:id/folder', documentController.moveDocumentToFolder);
 
 // OCR & Indexing
 router.post('/:id/run-ocr', documentController.runOcr);

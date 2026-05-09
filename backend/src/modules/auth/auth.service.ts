@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UserModel, IUser } from '../users/user.model';
 import { env } from '../../config/env';
-import { ConflictError, UnauthorizedError, BadRequestError } from '../../utils/errors';
+import { ConflictError, UnauthorizedError, BadRequestError, PasswordReusedError } from '../../utils/errors';
 import {
   sendPasswordChangedEmail,
   sendPasswordResetEmail,
@@ -40,7 +40,6 @@ interface ForgotPasswordResult {
 }
 
 const SALT_ROUNDS = 12;
-const PASSWORD_HISTORY_LIMIT = 5;
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -54,7 +53,7 @@ const hasUsedPasswordBefore = async (password: string, hashes: string[]): Promis
 };
 
 const buildUpdatedPasswordHistory = (currentHash: string, passwordHistory: string[] = []): string[] => {
-  return [currentHash, ...passwordHistory].slice(0, PASSWORD_HISTORY_LIMIT);
+  return [currentHash, ...passwordHistory];
 };
 
 export const register = async (params: RegisterParams): Promise<RegisterResult> => {
@@ -216,7 +215,7 @@ export const resetPassword = async (email: string, code: string, newPassword: st
     ...(user.passwordHistory || []),
   ]);
   if (usedBefore) {
-    throw new BadRequestError('Please choose a password you have not used before');
+    throw new PasswordReusedError();
   }
 
   user.passwordHistory = buildUpdatedPasswordHistory(user.passwordHash, user.passwordHistory || []);
@@ -239,7 +238,7 @@ export const changePassword = async (userId: string, currentPassword: string, ne
     ...(user.passwordHistory || []),
   ]);
   if (usedBefore) {
-    throw new BadRequestError('Please choose a password you have not used before');
+    throw new PasswordReusedError();
   }
 
   user.passwordHistory = buildUpdatedPasswordHistory(user.passwordHash, user.passwordHistory || []);

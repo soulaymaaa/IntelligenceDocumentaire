@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, FileText, RefreshCw } from 'lucide-react';
+import { Plus, Search, FileText, RefreshCw, ArrowLeft } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DocumentCard } from '@/components/documents/DocumentCard';
 import { UploadZone } from '@/components/documents/UploadZone';
@@ -18,27 +18,54 @@ export default function DocumentsPage() {
   const { copy } = useLanguage();
   const qc = useQueryClient();
   const [showUpload, setShowUpload] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState('unfiled');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<DocumentStatus | ''>('');
+  const [statusFilter, setStatusFilter] = useState<DocumentStatus | ''>('indexed');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const folderCopy = copy.documents.folders;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const folderId = params.get('folderId');
+    if (folderId) {
+      setSelectedFolderId(folderId);
+      setStatusFilter(''); // Show all documents by default when opening a folder
+      setPage(1);
+    }
+    const searchParam = params.get('search');
+    if (searchParam) {
+      setSearch(searchParam);
+    }
+  }, []);
 
   const STATUS_TABS: Array<{ label: string; value: DocumentStatus | '' }> = [
-    { label: copy.documents.status.all,        value: '' },
     { label: copy.documents.status.indexed,    value: 'indexed' },
+    { label: copy.documents.status.archived,   value: 'archived' },
+    { label: copy.documents.status.error,      value: 'error' },
+    { label: copy.documents.status.all,        value: '' },
     { label: copy.documents.status.pending,    value: 'pending' },
     { label: copy.documents.status.processing, value: 'processing_ocr' },
-    { label: copy.documents.status.error,      value: 'error' },
-    { label: copy.documents.status.archived,   value: 'archived' },
   ];
 
+  const { data: foldersData } = useQuery({
+    queryKey: ['document-folders'],
+    queryFn: () => documentsApi.listFolders(),
+  });
+
+  const folders = foldersData?.folders || [];
+  const selectedFolder = folders.find((folder) => folder._id === selectedFolderId);
+  const uploadFolderId = selectedFolderId !== 'unfiled' ? selectedFolderId : null;
+  const uploadFolderName = selectedFolderId !== 'unfiled' ? selectedFolder?.name : undefined;
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['documents', { page, status: statusFilter, search }],
+    queryKey: ['documents', { page, status: statusFilter, search, folderId: selectedFolderId }],
     queryFn: () => documentsApi.list({
       page, limit: 20,
       status: statusFilter && statusFilter !== 'archived' ? statusFilter : undefined,
       search: search || undefined,
       archived: statusFilter === 'archived' ? true : undefined,
+      folderId: selectedFolderId,
     }),
     refetchInterval: 10000, // poll for status updates
   });
@@ -47,6 +74,7 @@ export default function DocumentsPage() {
     mutationFn: (id: string) => documentsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['document-folders'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       setDeleteTarget(null);
     },
@@ -56,6 +84,7 @@ export default function DocumentsPage() {
     mutationFn: (id: string) => documentsApi.archive(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['document-folders'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -64,6 +93,7 @@ export default function DocumentsPage() {
     mutationFn: (id: string) => documentsApi.restore(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['document-folders'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -75,6 +105,14 @@ export default function DocumentsPage() {
     },
   });
 
+  const moveToFolderMutation = useMutation({
+    mutationFn: ({ id, folderId }: { id: string; folderId: string | null }) => documentsApi.moveToFolder(id, folderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['document-folders'] });
+    },
+  });
+
   const docs = data?.documents || [];
   const meta = data?.meta;
 
@@ -83,7 +121,7 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{copy.documents.title}</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{selectedFolderId !== 'unfiled' && selectedFolder ? selectedFolder.name : copy.documents.title}</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
             {meta?.total ?? '—'} {copy.documents.filesStored}
           </p>
@@ -138,15 +176,16 @@ export default function DocumentsPage() {
           <div className="w-20 h-20 bg-surface-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-surface-200 dark:border-slate-700">
             <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600" />
           </div>
-          <h3 className="text-slate-900 dark:text-slate-100 font-extrabold text-xl tracking-tight">{copy.documents.noResults}</h3>
+          <h3 className="text-slate-900 dark:text-slate-100 font-extrabold text-xl tracking-tight">{search ? copy.documents.noResults : selectedFolderId !== 'unfiled' ? folderCopy.emptyFolder : copy.documents.noResults}</h3>
           <p className="text-slate-500 dark:text-slate-400 mt-3 mb-8 max-w-md mx-auto font-medium">
-            {search || statusFilter 
+            {search 
               ? copy.documents.noResultsHelper
-              : copy.documents.emptyLibrary}
+              : (selectedFolderId !== 'unfiled' ? folderCopy.emptyFolderHelper : statusFilter ? copy.documents.noResultsHelper : copy.documents.emptyLibrary)}
           </p>
-          {!search && !statusFilter && (
+          {!search && (
             <Button onClick={() => setShowUpload(true)} size="lg" className="shadow-lg shadow-brand-500/20">
-              <Plus className="w-5 h-5 mr-1" /> {copy.documents.createFirstIndex}
+              <Plus className="w-5 h-5 mr-1" />
+              {selectedFolderId !== 'unfiled' ? folderCopy.addToFolder : copy.documents.createFirstIndex}
             </Button>
           )}
         </div>
@@ -157,12 +196,18 @@ export default function DocumentsPage() {
               <DocumentCard
                 key={doc._id}
                 document={doc}
+                folders={folders}
                 onDelete={(id) => setDeleteTarget(id)}
                 onArchive={(id) => archiveMutation.mutate(id)}
                 onRestore={(id) => restoreMutation.mutate(id)}
                 onRename={async (id, newName) => {
                   await renameMutation.mutateAsync({ id, newName });
                 }}
+                onMoveToFolder={async (id, folderId) => {
+                  await moveToFolderMutation.mutateAsync({ id, folderId });
+                }}
+                folderSelectLabel={folderCopy.selectLabel}
+                noFolderLabel={folderCopy.noFolder}
               />
             ))}
           </div>
@@ -195,9 +240,14 @@ export default function DocumentsPage() {
       {/* Upload modal */}
       <Modal isOpen={showUpload} onClose={() => setShowUpload(false)} title={copy.documents.uploadTitle} className="max-w-2xl">
         <UploadZone
+          folderId={uploadFolderId}
+          folderName={uploadFolderName}
           onUploadComplete={() => {
             qc.invalidateQueries({ queryKey: ['documents'] });
+            qc.invalidateQueries({ queryKey: ['document-folders'] });
             qc.invalidateQueries({ queryKey: ['dashboard'] });
+            setStatusFilter('');
+            setPage(1);
             setTimeout(() => setShowUpload(false), 1500);
           }}
         />
@@ -214,6 +264,7 @@ export default function DocumentsPage() {
         confirmLabel={copy.documents.deleteConfirm}
         danger
       />
+
     </AppLayout>
   );
 }

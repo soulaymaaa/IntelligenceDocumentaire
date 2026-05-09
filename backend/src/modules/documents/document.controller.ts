@@ -19,11 +19,18 @@ export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Respon
   const files = req.files as Express.Multer.File[];
   if (!files || files.length === 0) throw new ValidationError('No files uploaded');
 
+  const uploadSchema = z.object({
+    folderId: z.string().optional().transform((v) => v || undefined),
+  });
+  const parsedUpload = uploadSchema.safeParse(req.body);
+  if (!parsedUpload.success) throw new ValidationError('Invalid upload parameters');
+
   const created = await Promise.all(
     files.map(async (file) => {
       const previewMetadata = await createPreviewMetadata(file);
       const doc = await documentService.createDocument({
         ownerId: req.userId!,
+        folderId: parsedUpload.data.folderId,
         filename: file.filename,
         originalName: file.originalname,
         mimeType: file.mimetype,
@@ -76,6 +83,7 @@ export const listDocuments = asyncHandler(async (req: AuthRequest, res: Response
     status: z.string().optional(),
     search: z.string().optional(),
     archived: z.string().optional().transform(v => v === 'true' ? true : v === 'false' ? false : undefined),
+    folderId: z.string().optional().transform(v => v === 'unfiled' ? null : v),
   });
 
   const parsed = pageSchema.safeParse(req.query);
@@ -88,6 +96,72 @@ export const listDocuments = asyncHandler(async (req: AuthRequest, res: Response
   });
 
   return successResponse(res, result);
+});
+
+export const listFolders = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const search = req.query.search as string | undefined;
+  const result = await documentService.listFolders(req.userId!, search);
+  return successResponse(res, result);
+});
+
+export const createFolder = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const schema = z.object({
+    name: z.string().trim().min(1).max(120),
+    color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) throw new ValidationError('Invalid folder data');
+
+  const folder = await documentService.createFolder({
+    ownerId: req.userId!,
+    ...parsed.data,
+  });
+
+  await logAction({
+    userId: req.userId!,
+    action: 'DOCUMENT_FOLDER_CREATE',
+    resourceType: 'DocumentFolder',
+    resourceId: folder._id.toString(),
+    metadata: { name: folder.name },
+  });
+
+  return successResponse(res, { folder }, 'Folder created successfully', 201);
+});
+
+export const renameFolder = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const schema = z.object({
+    name: z.string().trim().min(1).max(120),
+    color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) throw new ValidationError('Invalid folder data');
+
+  const folder = await documentService.renameFolder(req.params.id, req.userId!, parsed.data);
+
+  await logAction({
+    userId: req.userId!,
+    action: 'DOCUMENT_FOLDER_RENAME',
+    resourceType: 'DocumentFolder',
+    resourceId: folder._id.toString(),
+    metadata: { name: folder.name },
+  });
+
+  return successResponse(res, { folder }, 'Folder updated successfully');
+});
+
+export const deleteFolder = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  await documentService.deleteFolder(req.params.id, req.userId!);
+
+  await logAction({
+    userId: req.userId!,
+    action: 'DOCUMENT_FOLDER_DELETE',
+    resourceType: 'DocumentFolder',
+    resourceId: req.params.id,
+  });
+
+  return successResponse(res, null, 'Folder deleted successfully');
 });
 
 export const getDocument = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
@@ -153,6 +227,30 @@ export const renameDocument = asyncHandler(async (req: AuthRequest, res: Respons
   });
 
   return successResponse(res, { document: doc }, 'Document renamed successfully');
+});
+
+export const moveDocumentToFolder = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const schema = z.object({
+    folderId: z.preprocess(
+      (v) => v === '' ? null : v,
+      z.string().nullable().optional()
+    ),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) throw new ValidationError('Invalid folder selection');
+
+  const doc = await documentService.moveDocumentToFolder(req.params.id, req.userId!, parsed.data.folderId);
+
+  await logAction({
+    userId: req.userId!,
+    action: 'DOCUMENT_MOVE_FOLDER',
+    resourceType: 'Document',
+    resourceId: req.params.id,
+    metadata: { folderId: parsed.data.folderId || null },
+  });
+
+  return successResponse(res, { document: doc }, 'Document moved successfully');
 });
 
 export const runOcr = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { Bot, ChevronRight, FileText, MessageSquare, Send, ShieldCheck, Sparkles, User2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -134,7 +135,7 @@ export const ConversationPanel = ({
   emptyTitle,
   emptyDescription,
 }: ConversationPanelProps) => {
-  const messages = conversation?.messages || [];
+  const messages = useMemo(() => [...(conversation?.messages || [])].reverse(), [conversation?.messages]);
 
   return (
     <div className="space-y-5">
@@ -158,11 +159,11 @@ export const ConversationPanel = ({
 
         <div className="mt-5">
           <Textarea
-            rows={4}
+            rows={1}
             value={question}
             onChange={(event) => onQuestionChange(event.target.value)}
             placeholder={placeholder || 'Pose une question sur tes documents'}
-            className="bg-surface-50 dark:bg-slate-950/40"
+            className="bg-surface-50 dark:bg-slate-950/40 resize-y min-h-[48px]"
             onKeyDown={(event) => {
               if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                 onSend();

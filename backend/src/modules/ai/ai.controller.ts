@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { generateSummary } from './summary.service';
+import { generateMindMap } from './mind-map.service';
 import { translateDocument } from './translation.service';
 import { askQuestion } from '../rag/rag.service';
 import { logAction } from '../audit/audit.service';
@@ -99,6 +100,26 @@ export const translateDocumentHandler = asyncHandler(
       });
 
       return successResponse(res, { translation }, 'Document translated successfully');
+    } catch (err) {
+      handleAiError(err);
+    }
+  }
+);
+
+export const generateMindMapHandler = asyncHandler(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const mindMap = await generateMindMap(id, req.userId!);
+
+      await logAction({
+        userId: req.userId!,
+        action: 'MIND_MAP_GENERATED',
+        resourceType: 'Document',
+        resourceId: id,
+      });
+
+      return successResponse(res, { mindMap }, 'Mind map generated successfully');
     } catch (err) {
       handleAiError(err);
     }

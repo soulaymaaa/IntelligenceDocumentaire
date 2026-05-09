@@ -2,17 +2,21 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText, Pencil, Check, X } from 'lucide-react';
+import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText, Pencil, Check, X, FolderClosed } from 'lucide-react';
 import { cn, formatBytes, formatDateShort, truncate } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/Badge';
-import type { Document } from '@/types';
+import type { Document, DocumentFolder } from '@/types';
 
 interface DocumentCardProps {
   document: Document;
+  folders?: DocumentFolder[];
   onDelete?: (id: string) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
   onRename?: (id: string, newName: string) => Promise<void>;
+  onMoveToFolder?: (id: string, folderId: string | null) => Promise<void>;
+  folderSelectLabel?: string;
+  noFolderLabel?: string;
 }
 
 const mimeIcon = (mime: string) => {
@@ -20,10 +24,21 @@ const mimeIcon = (mime: string) => {
   return <Image className="w-5 h-5 text-blue-400" />;
 };
 
-export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore, onRename }: DocumentCardProps) => {
+export const DocumentCard = ({
+  document: doc,
+  folders = [],
+  onDelete,
+  onArchive,
+  onRestore,
+  onRename,
+  onMoveToFolder,
+  folderSelectLabel = 'Folder',
+  noFolderLabel = 'No folder',
+}: DocumentCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(doc.originalName);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
 
   const handleRename = async () => {
     if (!onRename || newName.trim() === '' || newName === doc.originalName) {
@@ -51,6 +66,21 @@ export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore, on
       setNewName(doc.originalName);
     }
   };
+
+  const handleMove = async (folderValue: string) => {
+    if (!onMoveToFolder) return;
+
+    setIsMoving(true);
+    try {
+      await onMoveToFolder(doc._id, folderValue === 'none' ? null : folderValue);
+    } catch (error) {
+      console.error('Failed to move document:', error);
+    } finally {
+      setIsMoving(false);
+    }
+  };
+
+  const currentFolderMissing = Boolean(doc.folderId && !folders.some((folder) => folder._id === doc.folderId));
 
   return (
     <div className={cn(
@@ -157,6 +187,27 @@ export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore, on
               {formatDateShort(doc.createdAt)}
             </span>
           </div>
+
+          {onMoveToFolder && !doc.archived && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+              <FolderClosed className="w-4 h-4 shrink-0 text-slate-400" />
+              <select
+                aria-label={folderSelectLabel}
+                value={doc.folderId || 'none'}
+                disabled={isMoving}
+                onChange={(e) => handleMove(e.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-xs font-bold text-slate-600 outline-none disabled:opacity-60"
+              >
+                <option value="none">{noFolderLabel}</option>
+                {currentFolderMissing && <option value={doc.folderId || ''}>Unknown folder</option>}
+                {folders.map((folder) => (
+                  <option key={folder._id} value={folder._id}>
+                    {folder.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Summary preview */}
           {doc.summary && (
