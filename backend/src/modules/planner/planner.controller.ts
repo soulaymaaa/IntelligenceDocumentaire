@@ -14,11 +14,12 @@ export const getTasks = async (req: any, res: Response) => {
 
 export const createTask = async (req: any, res: Response) => {
   try {
-    const { text, date } = req.body;
+    const { text, date, reminderAt } = req.body;
     const task = new PlannerTask({
       userId: req.userId,
       text,
       date,
+      reminderAt: reminderAt ? new Date(reminderAt) : undefined,
     });
     await task.save();
     res.status(201).json({ success: true, data: task });
@@ -31,11 +32,17 @@ export const createTask = async (req: any, res: Response) => {
 export const updateTask = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    const { text, completed, date } = req.body;
+    const { text, completed, date, reminderAt } = req.body;
     
+    const updateData: any = { text, completed, date };
+    if (reminderAt !== undefined) {
+      updateData.reminderAt = reminderAt ? new Date(reminderAt) : null;
+      if (reminderAt) updateData.reminderSent = false; // Reset if date changed
+    }
+
     const task = await PlannerTask.findOneAndUpdate(
       { _id: id, userId: req.userId },
-      { text, completed, date },
+      updateData,
       { new: true }
     );
 

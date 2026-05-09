@@ -294,12 +294,12 @@ export const plannerApi = {
     return extractData(res);
   },
 
-  createTask: async (data: { text: string; date: string }) => {
+  createTask: async (data: { text: string; date: string; reminderAt?: string }) => {
     const res = await api.post<ApiResponse<any>>('/planner', data);
     return extractData(res);
   },
 
-  updateTask: async (id: string, data: { text?: string; completed?: boolean; date?: string }) => {
+  updateTask: async (id: string, data: { text?: string; completed?: boolean; date?: string; reminderAt?: string | null }) => {
     const res = await api.put<ApiResponse<any>>(`/planner/${id}`, data);
     return extractData(res);
   },

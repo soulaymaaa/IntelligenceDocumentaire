@@ -5,6 +5,7 @@ export interface IPlannerTask extends Document {
   text: string;
   completed: boolean;
   date: string; // YYYY-MM-DD
+  reminderAt?: Date; // Specific time for reminder
   reminderSent: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -16,6 +17,7 @@ const PlannerTaskSchema: Schema = new Schema(
     text: { type: String, required: true },
     completed: { type: Boolean, default: false },
     date: { type: String, required: true }, // Format YYYY-MM-DD
+    reminderAt: { type: Date },
     reminderSent: { type: Boolean, default: false },
   },
   { timestamps: true }

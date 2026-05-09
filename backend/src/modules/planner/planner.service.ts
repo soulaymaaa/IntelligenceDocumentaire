@@ -5,30 +5,51 @@ import { logger } from '../../utils/logger';
 import { format, addDays } from 'date-fns';
 
 export const initReminderJob = () => {
-  // Run every day at 09:00 AM
-  cron.schedule('0 9 * * *', async () => {
+  // Run every hour
+  cron.schedule('0 * * * *', async () => {
     logger.info('Running planner reminder job...');
     
     try {
-      // Find tasks for tomorrow
-      const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+      const now = new Date();
       
-      const tasksToRemind = await PlannerTask.find({
-        date: tomorrow,
-        completed: false,
-        reminderSent: false
+      // 1. Find tasks with custom reminderAt that are due
+      const customReminders = await PlannerTask.find({
+        reminderAt: { $lte: now },
+        reminderSent: false,
+        completed: false
       }).populate('userId');
 
-      for (const task of tasksToRemind) {
-        const user = task.userId as any; // Cast to access email
+      // 2. Find tasks for tomorrow (default 1-day-before reminder at 9 AM)
+      // Only run this part at 9 AM
+      let defaultReminders: any[] = [];
+      if (now.getHours() === 9) {
+        const tomorrow = format(addDays(now, 1), 'yyyy-MM-dd');
+        defaultReminders = await PlannerTask.find({
+          date: tomorrow,
+          reminderAt: { $exists: false }, // Only those without custom reminder
+          completed: false,
+          reminderSent: false
+        }).populate('userId');
+      }
+
+      const allTasks = [...customReminders, ...defaultReminders];
+
+      for (const task of allTasks) {
+        const user = task.userId as any;
         if (user && user.email) {
-          await sendReminderEmail(user.email, task.text, task.date);
-          task.reminderSent = true;
-          await task.save();
+          try {
+            await sendReminderEmail(user.email, task.text, task.date);
+            task.reminderSent = true;
+            await task.save();
+          } catch (err) {
+            logger.error(`Failed to send email to ${user.email}:`, err);
+          }
         }
       }
 
-      logger.info(`Reminder job finished. Sent ${tasksToRemind.length} reminders.`);
+      if (allTasks.length > 0) {
+        logger.info(`Reminder job: Sent ${allTasks.length} reminders.`);
+      }
     } catch (error) {
       logger.error('Error in reminder job:', error);
     }
