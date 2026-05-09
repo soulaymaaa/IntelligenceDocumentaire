@@ -47,16 +47,25 @@ const extractTextFromOffice = async (filePath: string, mimeType: string): Promis
 
   try {
     const text = await new Promise<string>((resolve, reject) => {
-      officeparser.parseOffice(filePath, (data: any, err: any) => {
-        if (err) return reject(err);
-        resolve(data);
-      });
+      try {
+        officeparser.parseOffice(filePath, (data: any, err: any) => {
+          if (err) {
+            logger.error(`OfficeParser callback error for ${filePath}:`, err);
+            return reject(err);
+          }
+          resolve(data);
+        });
+      } catch (parseErr) {
+        logger.error(`OfficeParser synchronous error for ${filePath}:`, parseErr);
+        reject(parseErr);
+      }
     });
     logger.info(`Office text extracted: ${text?.length || 0} characters from ${path.basename(filePath)}`);
     return text || '';
   } catch (error: any) {
     logger.error(`Office parsing failed for ${filePath}: ${error.message || error}`, error);
-    throw error;
+    // Return empty string instead of throwing to prevent process crash if unhandled later
+    return '';
   }
 };
 

@@ -949,8 +949,7 @@ export default function DocumentDetailPage() {
                   </p>
                 </div>
               )}
-
-              {translateMutation.isError && (
+              {translateMutation.isError && (
                 <p className="mt-4 text-sm font-bold text-red-600">{getErrorMessage(translateMutation.error)}</p>
               )}
             </div>
@@ -994,8 +993,8 @@ export default function DocumentDetailPage() {
                       onClick={() => setSelectedConversationId(conversation._id)}
                       className={`w-full rounded-2xl border px-4 py-4 text-left transition-all ${
                         selectedConversationId === conversation._id
-                          ? 'border-brand-500/30 bg-brand-50/80 shadow-sm'
-                          : 'border-surface-200 bg-white hover:border-brand-500/20 hover:bg-surface-50'
+                          ? 'border-brand-500/30 bg-brand-50/80 dark:bg-brand-500/20 shadow-sm'
+                          : 'border-surface-200 bg-white dark:bg-slate-900/40 hover:border-brand-500/20 hover:bg-surface-50 dark:hover:bg-slate-800'
                       }`}
                     >
                       <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{conversation.title}</p>
