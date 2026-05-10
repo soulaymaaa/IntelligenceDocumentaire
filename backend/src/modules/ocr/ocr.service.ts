@@ -320,15 +320,41 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
                 return paddedRow;
               });
               
+              const colMaxLengths = headers.map((h, i) => {
+                let max = h.length;
+                for (const row of tableRows) {
+                  if (row[i] && row[i].length > max) {
+                    max = row[i].length;
+                  }
+                }
+                return Math.min(max, 150);
+              });
+              const totalLength = colMaxLengths.reduce((a, b) => a + b, 0) || 1;
+              const usableWidth = 841.89 - 60;
+              
+              const headersWithWidths = headers.map((h, i) => {
+                const proportion = colMaxLengths[i] / totalLength;
+                const width = Math.max(40, proportion * usableWidth);
+                return { label: h, property: `col${i}`, width };
+              });
+
+              const mappedRows = tableRows.map(row => {
+                const obj: Record<string, string> = {};
+                row.forEach((cell, i) => {
+                  obj[`col${i}`] = cell;
+                });
+                return obj;
+              });
+
               const table = {
                 title: sheetTitle,
-                headers: headers,
-                rows: tableRows.length > 0 ? tableRows : [[' ']],
+                headers: headersWithWidths,
+                rows: mappedRows.length > 0 ? mappedRows : [{}],
               };
               
               await doc.table(table, {
-                prepareHeader: () => doc.font("Helvetica-Bold").fontSize(10),
-                prepareRow: () => doc.font("Helvetica").fontSize(10),
+                prepareHeader: () => doc.font("Helvetica-Bold").fontSize(8),
+                prepareRow: () => doc.font("Helvetica").fontSize(8),
               });
               doc.moveDown(2);
             } else {
