@@ -93,7 +93,7 @@ const extractTextFromXlsxFallback = (filePath: string): string => {
       const rows = extractXmlBlocks(content, 'row')
         .map(rowXml => extractXlsxRowText(rowXml, sharedStrings))
         .filter(row => row.length > 0)
-        .map(row => row.join(' | '));
+        .map(row => row.map(cell => cell.replace(/[\r\n]+/g, ' ').replace(/_x000D_|Ð/g, '').trim()).join(' | '));
 
       return rows.length > 0 ? `${sheetName}\n${rows.join('\n')}` : '';
     }).filter(Boolean);
