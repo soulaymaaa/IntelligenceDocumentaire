@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText, Pencil, Check, X, FolderClosed } from 'lucide-react';
+import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText, Pencil, Check, X, FolderClosed, Presentation, FileSpreadsheet } from 'lucide-react';
 import { cn, formatBytes, formatDateShort, truncate } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/Badge';
 import type { Document, DocumentFolder } from '@/types';
@@ -19,9 +19,17 @@ interface DocumentCardProps {
   noFolderLabel?: string;
 }
 
-const mimeIcon = (mime: string) => {
-  if (mime === 'application/pdf') return <FileText className="w-5 h-5 text-red-400" />;
-  return <Image className="w-5 h-5 text-blue-400" />;
+const mimeIcon = (mime: string, filename: string) => {
+  const m = mime?.toLowerCase() || '';
+  const f = filename?.toLowerCase() || '';
+
+  if (m.includes('pdf')) return <FileText className="w-5 h-5 text-red-500" />;
+  if (m.includes('word') || f.endsWith('.docx') || f.endsWith('.doc')) return <FileText className="w-5 h-5 text-blue-500" />;
+  if (m.includes('spreadsheet') || m.includes('excel') || f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')) return <FileSpreadsheet className="w-5 h-5 text-emerald-500" />;
+  if (m.includes('presentation') || m.includes('powerpoint') || f.endsWith('.pptx') || f.endsWith('.ppt')) return <Presentation className="w-5 h-5 text-orange-500" />;
+  if (m.includes('image')) return <Image className="w-5 h-5 text-purple-500" />;
+  
+  return <FileText className="w-5 h-5 text-slate-400" />;
 };
 
 export const DocumentCard = ({
@@ -90,7 +98,7 @@ export const DocumentCard = ({
       <div className="flex items-start gap-4">
         {/* Icon */}
         <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 shadow-inner group-hover:bg-brand-50 transition-colors">
-          {mimeIcon(doc.mimeType)}
+          {mimeIcon(doc.mimeType, doc.originalName)}
         </div>
 
         {/* Content */}
