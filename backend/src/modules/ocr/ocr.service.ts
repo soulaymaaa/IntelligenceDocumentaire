@@ -326,8 +326,13 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
               const colMaxLengths = headers.map((h, i) => {
                 let max = h.length;
                 for (const row of tableRows) {
-                  if (row[i] && row[i].length > max) {
-                    max = row[i].length;
+                  if (row[i]) {
+                    const lines = row[i].replace(/\\n/g, '\n').split('\n');
+                    for (const line of lines) {
+                      if (line.length > max) {
+                        max = line.length;
+                      }
+                    }
                   }
                 }
                 return Math.max(15, Math.min(max, 150));
@@ -341,9 +346,22 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
                 return { label: h, width };
               });
 
-              const finalRows = tableRows.map(row => 
-                row.map(cell => cell.replace(/\\n/g, '\n'))
-              );
+              const finalRows: string[][] = [];
+              for (const row of tableRows) {
+                const unescapedRow = row.map(cell => cell.replace(/\\n/g, '\n'));
+                const splitCells = unescapedRow.map(cell => cell.split('\n'));
+                const maxLines = Math.max(...splitCells.map(c => c.length));
+                
+                for (let i = 0; i < maxLines; i++) {
+                  const subRow = splitCells.map(cellLines => cellLines[i] || ' ');
+                  finalRows.push(subRow);
+                }
+                finalRows.push(headers.map(() => ' '));
+              }
+
+              if (finalRows.length > 0 && finalRows[finalRows.length - 1].every(c => c === ' ')) {
+                finalRows.pop();
+              }
 
               const table = {
                 title: sheetTitle,
@@ -356,6 +374,10 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
                 width: usableWidth,
                 prepareHeader: () => doc.font("Helvetica-Bold").fontSize(8),
                 prepareRow: () => doc.font("Helvetica").fontSize(8),
+                divider: {
+                  header: { disabled: false, width: 1, opacity: 1 },
+                  horizontal: { disabled: true, width: 0, opacity: 0 },
+                }
               });
               doc.moveDown(2);
             } else {
