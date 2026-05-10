@@ -550,11 +550,11 @@ export default function DocumentDetailPage() {
                   <p className="text-xs font-medium leading-relaxed text-slate-300 mb-6">
                     {copy.documents.detail.highlights.description}
                   </p>
-                  {previewUrl && (
+                  {originalUrl && (
                     <Button
                       variant="secondary"
                       className="w-full h-11 rounded-xl bg-white/10 border-white/10 text-white hover:bg-white hover:text-slate-900 transition-all font-black text-[10px] uppercase tracking-widest"
-                      onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+                      onClick={() => window.open(originalUrl, '_blank', 'noopener,noreferrer')}
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                       {copy.documents.detail.visualize}
