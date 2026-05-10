@@ -146,16 +146,16 @@ const colLetterToIndex = (letters: string): number => {
 const extractXlsxRowText = (rowXml: string, sharedStrings: string[]): string[] => {
   const cellBlocks = extractXlsxCellBlocks(rowXml);
   const row: string[] = [];
+  let currentColIndex = 0;
   
   for (const cellXml of cellBlocks) {
     const text = extractXlsxCellText(cellXml, sharedStrings);
-    const rMatch = /\br="([A-Z]+)\d+"/.exec(cellXml);
+    const rMatch = /\br=['"]?([A-Z]+)\d+['"]?/i.exec(cellXml);
     if (rMatch) {
-      const colIndex = colLetterToIndex(rMatch[1]);
-      row[colIndex] = text || '';
-    } else {
-      row.push(text || '');
+      currentColIndex = colLetterToIndex(rMatch[1].toUpperCase());
     }
+    row[currentColIndex] = text || '';
+    currentColIndex++;
   }
   
   for (let i = 0; i < row.length; i++) {
@@ -320,6 +320,16 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
                 return paddedRow;
               });
               
+              const breakLongWords = (str: string) => {
+                if (!str) return '';
+                return str.split(' ').map(word => {
+                  if (word.length > 20) {
+                    return word.match(/.{1,15}/g)?.join('\u200B') || word;
+                  }
+                  return word;
+                }).join(' ');
+              };
+
               const colMaxLengths = headers.map((h, i) => {
                 let max = h.length;
                 for (const row of tableRows) {
@@ -327,21 +337,21 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
                     max = row[i].length;
                   }
                 }
-                return Math.min(max, 150);
+                return Math.max(5, Math.min(max, 150));
               });
+              
               const totalLength = colMaxLengths.reduce((a, b) => a + b, 0) || 1;
               const usableWidth = 841.89 - 60;
               
               const headersWithWidths = headers.map((h, i) => {
-                const proportion = colMaxLengths[i] / totalLength;
-                const width = Math.max(40, proportion * usableWidth);
+                const width = (colMaxLengths[i] / totalLength) * usableWidth;
                 return { label: h, property: `col${i}`, width };
               });
 
               const mappedRows = tableRows.map(row => {
                 const obj: Record<string, string> = {};
                 row.forEach((cell, i) => {
-                  obj[`col${i}`] = cell;
+                  obj[`col${i}`] = breakLongWords(cell);
                 });
                 return obj;
               });
