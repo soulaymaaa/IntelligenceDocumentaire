@@ -93,7 +93,7 @@ const extractTextFromXlsxFallback = (filePath: string): string => {
       const rows = extractXmlBlocks(content, 'row')
         .map(rowXml => extractXlsxRowText(rowXml, sharedStrings))
         .filter(row => row.length > 0)
-        .map(row => row.map(cell => cell.replace(/[\r\n]+/g, ' ').replace(/_x000D_|Ð/g, '').trim()).join(' | '));
+        .map(row => row.map(cell => cell.replace(/[\r\n]+/g, '\\n').replace(/_x000D_|Ð/g, '').trim()).join(' | '));
 
       return rows.length > 0 ? `${sheetName}\n${rows.join('\n')}` : '';
     }).filter(Boolean);
@@ -310,26 +310,29 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
             const rows = lines.slice(1).map(line => line.split(' | '));
             
             if (rows.length > 0) {
-              const maxCols = Math.max(...rows.map(r => r.length));
-              const headers = rows[0].map(h => String(h || ' '));
-              while (headers.length < maxCols) headers.push(' ');
+              const breakLongWords = (str: string) => {
+                if (!str) return '';
+                return str.split(/(\s+)/).map(word => {
+                  if (word.trim().length > 20) {
+                    return word.match(/.{1,15}/g)?.join('\u200B') || word;
+                  }
+                  return word;
+                }).join('');
+              };
+
+              let headerRow = rows[0];
+              while(headerRow.length > 0 && !headerRow[headerRow.length - 1].trim()) {
+                 headerRow.pop();
+              }
+              const maxCols = headerRow.length;
+              const headers = headerRow.map(h => String(h || ' '));
               
               const tableRows = rows.slice(1).map(row => {
-                const paddedRow = row.map(c => String(c || ' '));
+                const paddedRow = row.slice(0, maxCols).map(c => String(c || ' '));
                 while (paddedRow.length < maxCols) paddedRow.push(' ');
                 return paddedRow;
               });
               
-              const breakLongWords = (str: string) => {
-                if (!str) return '';
-                return str.split(' ').map(word => {
-                  if (word.length > 20) {
-                    return word.match(/.{1,15}/g)?.join('\u200B') || word;
-                  }
-                  return word;
-                }).join(' ');
-              };
-
               const colMaxLengths = headers.map((h, i) => {
                 let max = h.length;
                 for (const row of tableRows) {
@@ -351,7 +354,7 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
               const mappedRows = tableRows.map(row => {
                 const obj: Record<string, string> = {};
                 row.forEach((cell, i) => {
-                  obj[`col${i}`] = breakLongWords(cell);
+                  obj[`col${i}`] = breakLongWords(cell.replace(/\\n/g, '\n'));
                 });
                 return obj;
               });
