@@ -14,6 +14,19 @@ import {
   getImagePreviewPdfFilename,
   isImageMimeType,
 } from './pdf-preview.service';
+import {
+  decodeMulterFilename,
+  detectStoredFileType,
+  renameStoredFileToExtension,
+} from '../../utils/file-inspection';
+
+interface PreparedUploadFile {
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  storagePath: string;
+}
 
 export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const files = req.files as Express.Multer.File[];
@@ -27,15 +40,16 @@ export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Respon
 
   const created = await Promise.all(
     files.map(async (file) => {
-      const previewMetadata = await createPreviewMetadata(file);
+      const preparedFile = await prepareUploadedFile(file);
+      const previewMetadata = await createPreviewMetadata(preparedFile);
       const doc = await documentService.createDocument({
         ownerId: req.userId!,
         folderId: parsedUpload.data.folderId,
-        filename: file.filename,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        storagePath: path.join(env.UPLOAD_DIR, file.filename),
+        filename: preparedFile.filename,
+        originalName: preparedFile.originalName,
+        mimeType: preparedFile.mimeType,
+        size: preparedFile.size,
+        storagePath: preparedFile.storagePath,
         ...previewMetadata,
       });
 
@@ -47,7 +61,7 @@ export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Respon
         action: 'DOCUMENT_UPLOAD',
         resourceType: 'Document',
         resourceId: doc._id.toString(),
-        metadata: { filename: file.originalname, size: file.size },
+        metadata: { filename: preparedFile.originalName, size: preparedFile.size },
       });
 
       return doc;
@@ -57,10 +71,39 @@ export const uploadDocuments = asyncHandler(async (req: AuthRequest, res: Respon
   return successResponse(res, { documents: created }, `${created.length} document(s) uploaded`, 201);
 });
 
+const prepareUploadedFile = async (file: Express.Multer.File): Promise<PreparedUploadFile> => {
+  const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
+  let filename = file.filename;
+  let filePath = path.resolve(uploadDir, filename);
+  const originalName = decodeMulterFilename(file.originalname);
+  const detected = detectStoredFileType(filePath);
+  const mimeType = detected?.mimeType || file.mimetype;
+
+  if (detected) {
+    const normalized = await renameStoredFileToExtension(filePath, filename, detected.extension);
+    filename = normalized.filename;
+    filePath = normalized.filePath;
+
+    if (filename !== file.filename || mimeType !== file.mimetype) {
+      logger.info(
+        `Normalized upload ${originalName}: ${file.mimetype}/${file.filename} -> ${mimeType}/${filename}`
+      );
+    }
+  }
+
+  return {
+    filename,
+    originalName,
+    mimeType,
+    size: file.size,
+    storagePath: path.join(env.UPLOAD_DIR, filename),
+  };
+};
+
 const createPreviewMetadata = async (
-  file: Express.Multer.File
+  file: PreparedUploadFile
 ): Promise<{ ocrPdfPath?: string; pageCount?: number }> => {
-  if (!isImageMimeType(file.mimetype)) return {};
+  if (!isImageMimeType(file.mimeType)) return {};
 
   const previewPdfFilename = getImagePreviewPdfFilename(file.filename);
   const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
@@ -71,7 +114,7 @@ const createPreviewMetadata = async (
     await createImagePdfPreview(imagePath, previewPdfPath);
     return { ocrPdfPath: previewPdfFilename, pageCount: 1 };
   } catch (error) {
-    logger.warn(`Image PDF preview generation failed for ${file.originalname}:`, error);
+    logger.warn(`Image PDF preview generation failed for ${file.originalName}:`, error);
     return {};
   }
 };

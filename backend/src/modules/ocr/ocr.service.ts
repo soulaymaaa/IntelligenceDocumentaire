@@ -15,6 +15,7 @@ import {
   createImagePdfPreview,
   getImagePreviewPdfFilename,
 } from '../documents/pdf-preview.service';
+import { normalizeDocumentStoredFile } from '../documents/document-file.service';
 
 const OFFICE_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -27,6 +28,8 @@ const OFFICE_MIME_TYPES = [
 
 const isOfficeType = (mimeType: string) => OFFICE_MIME_TYPES.includes(mimeType);
 const isWordDocx = (mimeType: string) => mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const isSpreadsheetXlsx = (mimeType: string) => mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const isPowerPointPptx = (mimeType: string) => mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const isTextType = (mimeType: string) => mimeType === 'text/plain';
 
 const extractTextFromWord = async (filePath: string): Promise<string> => {
@@ -57,7 +60,9 @@ const extractTextFromPptxFallback = (filePath: string): string => {
       // Simple regex to extract text content between <a:t> tags
       const textMatches = content.match(/<a:t>([^<]+)<\/a:t>/g);
       if (textMatches) {
-        const slideText = textMatches.map(m => m.replace(/<\/?a:t>/g, '')).join(' ');
+        const slideText = textMatches
+          .map(m => decodeXmlText(m.replace(/<\/?a:t>/g, '')))
+          .join(' ');
         fullText += slideText + '\n\n';
       }
     }
@@ -73,13 +78,149 @@ const extractTextFromPptxFallback = (filePath: string): string => {
   }
 };
 
-const extractTextFromOffice = async (filePath: string, mimeType: string): Promise<string> => {
+const extractTextFromXlsxFallback = (filePath: string): string => {
+  try {
+    const zip = new AdmZip(filePath);
+    const sharedStrings = readXlsxSharedStrings(zip);
+    const sheetNames = readXlsxSheetNames(zip);
+    const sheetEntries = zip.getEntries()
+      .filter(entry => /^xl\/worksheets\/sheet\d+\.xml$/.test(entry.entryName))
+      .sort((a, b) => a.entryName.localeCompare(b.entryName, undefined, { numeric: true }));
+
+    const sheets = sheetEntries.map((entry, index) => {
+      const sheetName = sheetNames[index] || `Sheet ${index + 1}`;
+      const content = entry.getData().toString('utf8');
+      const rows = extractXmlBlocks(content, 'row')
+        .map(rowXml => extractXlsxRowText(rowXml, sharedStrings))
+        .filter(row => row.length > 0)
+        .map(row => row.join(' | '));
+
+      return rows.length > 0 ? `${sheetName}\n${rows.join('\n')}` : '';
+    }).filter(Boolean);
+
+    const fullText = sheets.join('\n\n');
+    if (fullText.trim().length > 0) {
+      logger.info(`Fallback XLSX extraction successful: ${fullText.length} characters`);
+      return fullText.trim();
+    }
+  } catch (error) {
+    logger.error(`Fallback XLSX extraction failed for ${filePath}:`, error);
+  }
+
+  return '';
+};
+
+const readXlsxSharedStrings = (zip: AdmZip): string[] => {
+  const entry = zip.getEntry('xl/sharedStrings.xml');
+  if (!entry) return [];
+
+  return extractXmlBlocks(entry.getData().toString('utf8'), 'si')
+    .map(siXml => extractXmlBlocks(siXml, 't').map(decodeXmlText).join(''))
+    .map(text => text.trim());
+};
+
+const readXlsxSheetNames = (zip: AdmZip): string[] => {
+  const entry = zip.getEntry('xl/workbook.xml');
+  if (!entry) return [];
+
+  const workbookXml = entry.getData().toString('utf8');
+  const names: string[] = [];
+  const sheetRegex = /<sheet\b[^>]*\bname="([^"]+)"/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = sheetRegex.exec(workbookXml)) !== null) {
+    names.push(decodeXmlText(match[1]));
+  }
+
+  return names;
+};
+
+const extractXlsxRowText = (rowXml: string, sharedStrings: string[]): string[] => {
+  return extractXlsxCellBlocks(rowXml)
+    .map(cellXml => extractXlsxCellText(cellXml, sharedStrings))
+    .filter((value): value is string => Boolean(value));
+};
+
+const extractXlsxCellBlocks = (rowXml: string): string[] => {
+  const cellRegex = /<c\b[^>]*>[\s\S]*?<\/c>/g;
+  return rowXml.match(cellRegex) || [];
+};
+
+const extractXlsxCellText = (cellXml: string, sharedStrings: string[]): string | undefined => {
+  const type = /\bt="([^"]+)"/.exec(cellXml)?.[1];
+  const rawValue = extractXmlBlocks(cellXml, 'v')[0];
+
+  if (type === 's' && rawValue !== undefined) {
+    return sharedStrings[Number(rawValue)] || undefined;
+  }
+
+  if (type === 'inlineStr') {
+    const inlineText = extractXmlBlocks(cellXml, 't').map(decodeXmlText).join('');
+    return inlineText.trim() || undefined;
+  }
+
+  if (rawValue !== undefined) {
+    const decoded = decodeXmlText(rawValue).trim();
+    return decoded || undefined;
+  }
+
+  return undefined;
+};
+
+const extractXmlBlocks = (xml: string, tagName: string): string[] => {
+  const regex = new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'g');
+  const blocks: string[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(xml)) !== null) {
+    blocks.push(match[1]);
+  }
+
+  return blocks;
+};
+
+const decodeXmlText = (value: string): string => {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+};
+
+const coerceOfficeParserText = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+
+  const parts: string[] = [];
+  collectOfficeParserText(value, parts);
+  return parts.join('\n').trim();
+};
+
+const collectOfficeParserText = (node: unknown, parts: string[]): void => {
+  if (!node || typeof node !== 'object') return;
+
+  const candidate = node as { text?: unknown; children?: unknown };
+  if (typeof candidate.text === 'string' && candidate.text.trim()) {
+    parts.push(candidate.text.trim());
+  }
+
+  if (Array.isArray(candidate.children)) {
+    candidate.children.forEach(child => collectOfficeParserText(child, parts));
+  }
+};
+
+export const extractTextFromOffice = async (filePath: string, mimeType: string): Promise<string> => {
   if (isWordDocx(mimeType)) {
     return extractTextFromWord(filePath);
   }
 
+  if (isSpreadsheetXlsx(mimeType)) {
+    return extractTextFromXlsxFallback(filePath);
+  }
+
   try {
-    const text = await new Promise<string>((resolve, reject) => {
+    const parsed = await new Promise<unknown>((resolve, reject) => {
       try {
         officeparser.parseOffice(filePath, (data: any, err: any) => {
           if (err) {
@@ -93,6 +234,7 @@ const extractTextFromOffice = async (filePath: string, mimeType: string): Promis
         reject(parseErr);
       }
     });
+    const text = coerceOfficeParserText(parsed);
     
     if (text && text.trim().length > 0) {
       logger.info(`Office text extracted: ${text.length} characters from ${path.basename(filePath)}`);
@@ -103,9 +245,12 @@ const extractTextFromOffice = async (filePath: string, mimeType: string): Promis
   } catch (error: any) {
     logger.warn(`OfficeParser failed for ${filePath}, attempting fallback extraction...`);
     
-    // Fallback for PPTX if officeparser fails
-    if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+    if (isPowerPointPptx(mimeType)) {
       return extractTextFromPptxFallback(filePath);
+    }
+
+    if (isSpreadsheetXlsx(mimeType)) {
+      return extractTextFromXlsxFallback(filePath);
     }
     
     return '';
@@ -124,7 +269,7 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
       // Header
       doc.fontSize(20).text(title, { align: 'center' });
       doc.moveDown();
-      doc.fontSize(10).fillColor('gray').text('Document généré par DocIntel AI', { align: 'center' });
+      doc.fontSize(10).fillColor('gray').text('Document genere par DocIntel AI', { align: 'center' });
       doc.moveDown(2);
       
       // Content
@@ -150,7 +295,8 @@ export const performOcr = async (documentId: string): Promise<string> => {
   const doc = await DocumentModel.findById(documentId);
   if (!doc) throw new NotFoundError('Document');
 
-  const filePath = path.resolve(process.cwd(), env.UPLOAD_DIR, doc.filename);
+  const normalized = await normalizeDocumentStoredFile(doc);
+  const filePath = normalized.filePath;
 
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);

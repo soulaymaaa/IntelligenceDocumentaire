@@ -683,14 +683,14 @@ export default function DocumentDetailPage() {
             <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr,1.1fr]">
               <div className="space-y-4">
                 {(activeAssistantMessage?.highlights || []).length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-sm font-medium text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
                     {copy.documents.detail.highlights.noHighlights}
                   </div>
                 ) : (
                   activeAssistantMessage?.highlights?.map((highlight, index) => (
-                    <div key={`${highlight.sourceIndex}-${index}`} className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-4">
+                    <div key={`${highlight.sourceIndex}-${index}`} className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-4 dark:border-amber-500/30 dark:bg-amber-500/10">
                       <p
-                        className="text-sm leading-7 text-slate-700"
+                        className="text-sm font-medium leading-7 text-slate-800 dark:text-amber-50"
                         dangerouslySetInnerHTML={{ __html: highlightText(highlight.snippet, highlight.matchedTerms) }}
                       />
                     </div>
@@ -698,16 +698,16 @@ export default function DocumentDetailPage() {
                 )}
               </div>
 
-              <div className="rounded-3xl border border-surface-200 bg-slate-50 p-5">
+              <div className="rounded-3xl border border-surface-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900/80">
                 <div className="mb-4 flex items-center gap-2">
-                  <AlignLeft className="w-4 h-4 text-slate-400" />
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.documents.detail.highlights.extractedText}</p>
+                  <AlignLeft className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{copy.documents.detail.highlights.extractedText}</p>
                 </div>
-                <div className="max-h-[720px] overflow-auto rounded-2xl bg-white p-6">
+                <div className="max-h-[720px] overflow-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-inner shadow-slate-200/50 dark:border-slate-700 dark:bg-slate-950/80 dark:shadow-black/20">
                   <p
-                    className="whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300"
+                    className="whitespace-pre-wrap text-sm font-medium leading-8 text-slate-900 dark:text-slate-100"
                     dangerouslySetInnerHTML={{
-                    __html: highlightText(doc.extractedText || 'Aucun texte extrait disponible.', highlightTerms),
+                      __html: highlightText(doc.extractedText || 'Aucun texte extrait disponible.', highlightTerms),
                     }}
                   />
                 </div>

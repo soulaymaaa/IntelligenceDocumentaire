@@ -4,6 +4,7 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from '../../config/env';
 import { AppError } from '../../utils/errors';
+import { decodeMulterFilename } from '../../utils/file-inspection';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -32,7 +33,7 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = path.extname(decodeMulterFilename(file.originalname)).toLowerCase();
     const uniqueName = `${uuidv4()}${ext}`;
     cb(null, uniqueName);
   },
@@ -47,7 +48,7 @@ const fileFilter = (
     cb(null, true);
   } else {
     cb(new AppError(
-      'Invalid file type. Only PDF, JPG, JPEG, and PNG files are allowed.',
+      'Invalid file type. Only PDF, images, Office documents, and text files are allowed.',
       400,
       'INVALID_FILE_TYPE'
     ));

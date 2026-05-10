@@ -14,6 +14,7 @@ import {
   getImagePreviewPdfFilename,
   isImageMimeType,
 } from './pdf-preview.service';
+import { normalizeDocumentStoredFile } from './document-file.service';
 
 interface ListDocumentsParams {
   ownerId: string;
@@ -184,7 +185,8 @@ export const getDocument = async (id: string, ownerId: string): Promise<IDocumen
   const doc = await DocumentModel.findById(id).select('-__v').lean().exec();
   if (!doc) throw new NotFoundError('Document');
   if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
-  return ensureImagePreview(doc as unknown as IDocument);
+  const normalized = await normalizeDocumentStoredFile(doc as unknown as IDocument);
+  return ensureImagePreview(normalized.doc as unknown as IDocument);
 };
 
 export const createDocument = async (data: {
