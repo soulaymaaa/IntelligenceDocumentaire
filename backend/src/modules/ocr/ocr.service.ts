@@ -349,7 +349,7 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
               const table = {
                 title: sheetTitle,
                 headers: headersWithWidths,
-                rows: mappedRows.length > 0 ? mappedRows : [{}],
+                datas: mappedRows.length > 0 ? mappedRows : [{}],
               };
               
               await doc.table(table, {
