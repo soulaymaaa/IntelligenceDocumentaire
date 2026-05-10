@@ -9,7 +9,7 @@ import { logger } from '../../utils/logger';
 import { NotFoundError } from '../../utils/errors';
 const officeparser = require('officeparser');
 import mammoth from 'mammoth';
-import PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit-table';
 import AdmZip from 'adm-zip';
 import {
   createImagePdfPreview,
@@ -257,11 +257,11 @@ export const extractTextFromOffice = async (filePath: string, mimeType: string):
   }
 };
 
-const convertTextToPdfPreview = async (text: string, outputFilename: string, title: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
+const convertTextToPdfPreview = async (text: string, outputFilename: string, title: string, mimeType?: string): Promise<void> => {
+  return new Promise(async (resolve, reject) => {
     try {
       const outputPath = path.resolve(process.cwd(), env.UPLOAD_DIR, outputFilename);
-      const doc = new PDFDocument({ margin: 50 });
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
       const stream = fs.createWriteStream(outputPath);
       
       doc.pipe(stream);
@@ -272,11 +272,49 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
       doc.fontSize(10).fillColor('gray').text('Document genere par DocIntel AI', { align: 'center' });
       doc.moveDown(2);
       
-      // Content
-      doc.fontSize(11).fillColor('black').text(text, {
-        align: 'left',
-        lineGap: 5
-      });
+      if (mimeType && isSpreadsheetXlsx(mimeType)) {
+        const sheets = text.split('\n\n');
+        for (const sheet of sheets) {
+          const lines = sheet.split('\n');
+          if (lines.length > 0) {
+            const sheetTitle = lines[0];
+            const rows = lines.slice(1).map(line => line.split(' | '));
+            
+            if (rows.length > 0) {
+              const maxCols = Math.max(...rows.map(r => r.length));
+              const headers = rows[0].map(h => String(h || ' '));
+              while (headers.length < maxCols) headers.push(' ');
+              
+              const tableRows = rows.slice(1).map(row => {
+                const paddedRow = row.map(c => String(c || ' '));
+                while (paddedRow.length < maxCols) paddedRow.push(' ');
+                return paddedRow;
+              });
+              
+              const table = {
+                title: sheetTitle,
+                headers: headers,
+                rows: tableRows.length > 0 ? tableRows : [[' ']],
+              };
+              
+              await doc.table(table, {
+                prepareHeader: () => doc.font("Helvetica-Bold").fontSize(10),
+                prepareRow: () => doc.font("Helvetica").fontSize(10),
+              });
+              doc.moveDown(2);
+            } else {
+              doc.fontSize(12).font("Helvetica-Bold").text(sheetTitle);
+              doc.moveDown();
+            }
+          }
+        }
+      } else {
+        // Content
+        doc.fontSize(11).fillColor('black').text(text, {
+          align: 'left',
+          lineGap: 5
+        });
+      }
       
       doc.end();
       
@@ -314,7 +352,7 @@ export const performOcr = async (documentId: string): Promise<string> => {
     if (text && text.trim().length > 0) {
       const previewPdfFilename = `preview_${path.parse(doc.filename).name}.pdf`;
       try {
-        await convertTextToPdfPreview(text, previewPdfFilename, doc.originalName);
+        await convertTextToPdfPreview(text, previewPdfFilename, doc.originalName || doc.filename, doc.mimeType);
         await DocumentModel.findByIdAndUpdate(documentId, { ocrPdfPath: previewPdfFilename });
         logger.info(`Office document converted to PDF preview: ${previewPdfFilename}`);
       } catch (err) {
