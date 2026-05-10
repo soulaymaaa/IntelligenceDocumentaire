@@ -338,24 +338,22 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
               
               const headersWithWidths = headers.map((h, i) => {
                 const width = (colMaxLengths[i] / totalLength) * usableWidth;
-                return { label: h, property: `col${i}`, width };
+                return { label: h, width };
               });
 
-              const mappedRows = tableRows.map(row => {
-                const obj: Record<string, string> = {};
-                row.forEach((cell, i) => {
-                  obj[`col${i}`] = cell.replace(/\\n/g, '\n');
-                });
-                return obj;
-              });
+              const finalRows = tableRows.map(row => 
+                row.map(cell => cell.replace(/\\n/g, '\n'))
+              );
 
               const table = {
                 title: sheetTitle,
                 headers: headersWithWidths,
-                datas: mappedRows.length > 0 ? mappedRows : [{}],
+                rows: finalRows.length > 0 ? finalRows : [[' ']],
               };
               
+              doc.fontSize(8); // Crucial to prevent pdfkit-table pagination bug
               await doc.table(table, {
+                width: usableWidth,
                 prepareHeader: () => doc.font("Helvetica-Bold").fontSize(8),
                 prepareRow: () => doc.font("Helvetica").fontSize(8),
               });
