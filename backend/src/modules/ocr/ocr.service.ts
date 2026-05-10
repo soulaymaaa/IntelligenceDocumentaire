@@ -135,10 +135,34 @@ const readXlsxSheetNames = (zip: AdmZip): string[] => {
   return names;
 };
 
+const colLetterToIndex = (letters: string): number => {
+  let index = 0;
+  for (let i = 0; i < letters.length; i++) {
+    index = index * 26 + letters.charCodeAt(i) - 64;
+  }
+  return index - 1;
+};
+
 const extractXlsxRowText = (rowXml: string, sharedStrings: string[]): string[] => {
-  return extractXlsxCellBlocks(rowXml)
-    .map(cellXml => extractXlsxCellText(cellXml, sharedStrings))
-    .filter((value): value is string => Boolean(value));
+  const cellBlocks = extractXlsxCellBlocks(rowXml);
+  const row: string[] = [];
+  
+  for (const cellXml of cellBlocks) {
+    const text = extractXlsxCellText(cellXml, sharedStrings);
+    const rMatch = /\br="([A-Z]+)\d+"/.exec(cellXml);
+    if (rMatch) {
+      const colIndex = colLetterToIndex(rMatch[1]);
+      row[colIndex] = text || '';
+    } else {
+      row.push(text || '');
+    }
+  }
+  
+  for (let i = 0; i < row.length; i++) {
+    if (row[i] === undefined) row[i] = '';
+  }
+  
+  return row;
 };
 
 const extractXlsxCellBlocks = (rowXml: string): string[] => {
@@ -261,7 +285,12 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
   return new Promise(async (resolve, reject) => {
     try {
       const outputPath = path.resolve(process.cwd(), env.UPLOAD_DIR, outputFilename);
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const isExcel = mimeType && isSpreadsheetXlsx(mimeType);
+      const doc = new PDFDocument({ 
+        margin: isExcel ? 30 : 50, 
+        size: 'A4',
+        layout: isExcel ? 'landscape' : 'portrait' 
+      });
       const stream = fs.createWriteStream(outputPath);
       
       doc.pipe(stream);
