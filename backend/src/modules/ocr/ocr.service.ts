@@ -310,16 +310,6 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
             const rows = lines.slice(1).map(line => line.split(' | '));
             
             if (rows.length > 0) {
-              const breakLongWords = (str: string) => {
-                if (!str) return '';
-                return str.split(/(\s+)/).map(word => {
-                  if (word.trim().length > 20) {
-                    return word.match(/.{1,15}/g)?.join('\u200B') || word;
-                  }
-                  return word;
-                }).join('');
-              };
-
               let headerRow = rows[0];
               while(headerRow.length > 0 && !headerRow[headerRow.length - 1].trim()) {
                  headerRow.pop();
@@ -340,7 +330,7 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
                     max = row[i].length;
                   }
                 }
-                return Math.max(5, Math.min(max, 150));
+                return Math.max(15, Math.min(max, 150));
               });
               
               const totalLength = colMaxLengths.reduce((a, b) => a + b, 0) || 1;
@@ -354,7 +344,7 @@ const convertTextToPdfPreview = async (text: string, outputFilename: string, tit
               const mappedRows = tableRows.map(row => {
                 const obj: Record<string, string> = {};
                 row.forEach((cell, i) => {
-                  obj[`col${i}`] = breakLongWords(cell.replace(/\\n/g, '\n'));
+                  obj[`col${i}`] = cell.replace(/\\n/g, '\n');
                 });
                 return obj;
               });
