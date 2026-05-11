@@ -47,17 +47,25 @@ const handleAiError = (err: any): never => {
   throw err;
 };
 
+const summaryModeSchema = z.object({
+  mode: z.enum(['short', 'detailed', 'key_points', 'all']).optional().default('all'),
+});
+
 export const summarizeDocument = asyncHandler(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
     try {
       const { id } = req.params;
-      const summary = await generateSummary(id, req.userId!);
+      const parsed = summaryModeSchema.safeParse(req.body);
+      const mode = parsed.success ? parsed.data.mode : 'all';
+
+      const summary = await generateSummary(id, req.userId!, mode);
 
       await logAction({
         userId: req.userId!,
         action: 'SUMMARY_GENERATED',
         resourceType: 'Document',
         resourceId: id,
+        metadata: { mode },
       });
 
       return successResponse(res, { summary }, 'Summary generated successfully');

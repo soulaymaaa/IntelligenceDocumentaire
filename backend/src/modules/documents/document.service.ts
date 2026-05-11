@@ -82,6 +82,17 @@ export const archiveDocument = async (id: string, ownerId: string): Promise<IDoc
   return doc;
 };
 
+export const restoreDocument = async (id: string, ownerId: string): Promise<IDocument> => {
+  const doc = await DocumentModel.findById(id);
+  if (!doc) throw new NotFoundError('Document');
+  if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
+
+  doc.archived = false;
+  doc.status = 'indexed';
+  await doc.save();
+  return doc;
+};
+
 export const deleteDocument = async (id: string, ownerId: string): Promise<void> => {
   const doc = await DocumentModel.findById(id);
   if (!doc) throw new NotFoundError('Document');

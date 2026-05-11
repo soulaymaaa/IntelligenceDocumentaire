@@ -59,8 +59,11 @@ const documentChunkSchema = new Schema<IDocumentChunk>(
 documentChunkSchema.index({ documentId: 1, chunkIndex: 1 });
 documentChunkSchema.index({ ownerId: 1 });
 
-// Atlas Vector Search index is created separately via Atlas UI or mongosh:
-// db.documentchunks.createIndex({ embedding: "vectorSearch" })
+// Atlas Vector Search index must be created in MongoDB Atlas Search UI.
+// Recommended vector config for this project:
+// - path: "embedding"
+// - numDimensions: 384
+// - similarity: "cosine"
 
 export const DocumentChunkModel: Model<IDocumentChunk> = mongoose.model<IDocumentChunk>(
   'DocumentChunk',

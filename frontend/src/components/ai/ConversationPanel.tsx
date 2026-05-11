@@ -1,9 +1,19 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Bot, ChevronRight, FileText, MessageSquare, Send, ShieldCheck, Sparkles, User2 } from 'lucide-react';
+import {
+  Bot,
+  ChevronRight,
+  FileText,
+  MessageSquare,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  User2,
+  Zap,
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Textarea } from '@/components/ui/Input';
 import { cn, formatDate, highlightText } from '@/lib/utils';
 import type { Conversation, ConversationMessage } from '@/types';
@@ -19,103 +29,121 @@ interface ConversationPanelProps {
   emptyDescription?: string;
 }
 
-const confidenceClasses = {
-  high: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-  medium: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-  low: 'bg-red-500/10 text-red-600 border-red-500/20',
+const confidenceConfig = {
+  high: { cls: 'bg-emerald-500/10 text-emerald-700 border-emerald-400/30', label: 'Haute' },
+  medium: { cls: 'bg-amber-500/10 text-amber-700 border-amber-400/30', label: 'Moyenne' },
+  low: { cls: 'bg-slate-100 text-slate-500 border-slate-200', label: 'Faible' },
 };
 
+// ── Single message bubble ─────────────────────────────────────────────────────
+
 const MessageBubble = ({ message }: { message: ConversationMessage }) => {
-  const isAssistant = message.role === 'assistant';
+  const isUser = message.role === 'user';
+  const conf = !isUser && message.confidence ? confidenceConfig[message.confidence] : null;
 
   return (
-    <div className={cn('flex gap-4', isAssistant ? 'items-start' : 'items-start flex-row-reverse')}>
+    <div className={cn('flex gap-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
+      {/* Avatar */}
       <div
         className={cn(
-          'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border',
-          isAssistant
+          'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border shadow-sm',
+          isUser
             ? 'bg-brand-600 text-white border-brand-500'
-            : 'bg-surface-100 text-slate-700 border-surface-200'
+            : 'bg-white text-slate-600 border-surface-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
         )}
       >
-        {isAssistant ? <Bot className="w-5 h-5" /> : <User2 className="w-5 h-5" />}
+        {isUser ? <User2 className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
       </div>
 
-      <div className={cn('max-w-[85%] space-y-4', isAssistant ? '' : 'items-end')}>
+      <div className={cn('flex min-w-0 max-w-[82%] flex-col gap-2', isUser && 'items-end')}>
+        {/* Bubble */}
         <div
           className={cn(
-            'rounded-3xl border px-5 py-4 shadow-sm',
-            isAssistant
-              ? 'bg-white dark:bg-slate-900 border-surface-200'
-              : 'bg-brand-600 text-white border-brand-500/70'
+            'rounded-2xl border px-4 py-3 shadow-sm text-sm leading-relaxed',
+            isUser
+              ? 'rounded-tr-sm bg-brand-600 text-white border-brand-500/70'
+              : 'rounded-tl-sm bg-white dark:bg-slate-900 border-surface-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
           )}
         >
-          <p className={cn('text-sm leading-7 whitespace-pre-wrap', isAssistant ? 'text-slate-700 dark:text-slate-200' : 'text-white')}>
-            {message.content}
-          </p>
+          <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
 
-        {isAssistant && (message.relevanceScore !== undefined || message.confidence) && (
-          <div className="flex flex-wrap gap-2">
-            {message.relevanceScore !== undefined && (
-              <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-brand-700 dark:text-brand-300">
-                Relevance {message.relevanceScore}%
+        {/* Metadata — assistant only */}
+        {!isUser && (
+          <div className="flex flex-wrap items-center gap-1.5 px-1">
+            {message.relevanceScore !== undefined && message.relevanceScore > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-brand-300/40 bg-brand-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:bg-brand-950/30 dark:text-brand-300">
+                <Zap className="w-2.5 h-2.5" />
+                {message.relevanceScore}% pertinence
               </span>
             )}
-            {message.confidence && (
-              <span className={cn('rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-widest', confidenceClasses[message.confidence])}>
-                Confidence {message.confidence}
+            {conf && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+                  conf.cls
+                )}
+              >
+                <ShieldCheck className="w-2.5 h-2.5" />
+                Confiance {conf.label}
               </span>
             )}
-            <span className="rounded-full border border-surface-200 bg-surface-100 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-              {formatDate(message.createdAt)}
-            </span>
+            <span className="text-[10px] text-slate-400">{formatDate(message.createdAt)}</span>
           </div>
         )}
 
-        {isAssistant && message.highlights && message.highlights.length > 0 && (
-          <div className="grid gap-3">
-            {message.highlights.slice(0, 3).map((highlight, index) => (
-              <div key={`${highlight.sourceIndex}-${index}`} className="rounded-2xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-sm text-slate-700">
+        {/* Highlighted passages */}
+        {!isUser && message.highlights && message.highlights.length > 0 && (
+          <div className="flex flex-col gap-1.5 w-full">
+            {message.highlights.slice(0, 2).map((h, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-amber-200/80 bg-amber-50/60 dark:bg-amber-950/15 dark:border-amber-800/30 px-3 py-2"
+              >
                 <p
-                  className="leading-6"
-                  dangerouslySetInnerHTML={{ __html: highlightText(highlight.snippet, highlight.matchedTerms) }}
+                  className="text-xs leading-5 text-slate-600 dark:text-slate-400"
+                  dangerouslySetInnerHTML={{
+                    __html: highlightText(h.snippet, h.matchedTerms),
+                  }}
                 />
               </div>
             ))}
           </div>
         )}
 
-        {isAssistant && message.sources && message.sources.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-2">
-            {message.sources.slice(0, 4).map((source, index) => (
-              <Card key={`${source.chunkId}-${index}`} className="p-4 border-surface-200">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-brand-700 dark:text-brand-300">
-                    Source {index + 1}
+        {/* Source cards */}
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <div className="grid w-full gap-2 sm:grid-cols-2">
+            {message.sources.slice(0, 4).map((src, i) => (
+              <div
+                key={src.chunkId}
+                className="rounded-xl border border-surface-200 dark:border-slate-700 bg-surface-50/80 dark:bg-slate-800/50 p-3"
+              >
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="rounded-full bg-brand-50 dark:bg-brand-950/30 border border-brand-200/60 dark:border-brand-800/40 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-brand-700 dark:text-brand-400">
+                    Source {i + 1}
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    Score {(source.score * 100).toFixed(1)}%
+                  <span className="text-[9px] font-semibold text-slate-400">
+                    {(src.score * 100).toFixed(0)}%
                   </span>
                 </div>
                 <Link
-                  href={`/documents/${source.documentId}`}
-                  className="mb-2 inline-flex items-center gap-1.5 text-sm font-bold text-slate-800 transition-colors hover:text-brand-600 dark:text-slate-100"
+                  href={`/documents/${src.documentId}`}
+                  className="flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400 mb-1.5 transition-colors"
                 >
-                  <FileText className="w-4 h-4" />
-                  <span className="truncate">{source.documentName}</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-50" />
+                  <FileText className="w-3 h-3 shrink-0 text-brand-500" />
+                  <span className="truncate">{src.documentName}</span>
+                  <ChevronRight className="w-2.5 h-2.5 shrink-0 opacity-40" />
                 </Link>
-                <p className="text-xs leading-6 text-slate-600 dark:text-slate-300">
-                  {source.text.slice(0, 220)}
-                  {source.text.length > 220 ? '...' : ''}
+                <p className="text-[11px] leading-4 text-slate-500 dark:text-slate-400 line-clamp-3">
+                  {src.text.slice(0, 160)}…
                 </p>
-                {source.pageNumber && (
-                  <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                    Page {source.pageNumber}
+                {src.pageNumber && (
+                  <p className="mt-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                    p. {src.pageNumber}
                   </p>
                 )}
-              </Card>
+              </div>
             ))}
           </div>
         )}
@@ -123,6 +151,29 @@ const MessageBubble = ({ message }: { message: ConversationMessage }) => {
     </div>
   );
 };
+
+// ── Typing indicator ─────────────────────────────────────────────────────────
+
+const TypingIndicator = () => (
+  <div className="flex gap-3">
+    <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-surface-200 bg-white shadow-sm dark:bg-slate-800 dark:border-slate-700">
+      <Bot className="w-4 h-4 text-slate-500" />
+    </div>
+    <div className="rounded-2xl rounded-tl-sm border border-surface-200 bg-white dark:bg-slate-900 dark:border-slate-700 px-4 py-3 shadow-sm">
+      <div className="flex items-center gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-600 animate-bounce"
+            style={{ animationDelay: `${i * 150}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+// ── Main panel ────────────────────────────────────────────────────────────────
 
 export const ConversationPanel = ({
   conversation,
@@ -135,70 +186,99 @@ export const ConversationPanel = ({
   emptyDescription,
 }: ConversationPanelProps) => {
   const messages = conversation?.messages || [];
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, isSending]);
 
   return (
-    <div className="space-y-5">
-      <Card className="border-surface-200 p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
-              RAG conversationnel
-            </p>
-            <h3 className="mt-2 text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-              {conversation?.title || emptyTitle || 'Demarrer une conversation intelligente'}
-            </h3>
-            <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-              {emptyDescription || "Pose des questions naturellement, conserve l'historique et inspecte les preuves utilisees par le modele."}
-            </p>
+    <div className="flex flex-col rounded-2xl border border-surface-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden" style={{ minHeight: 520 }}>
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-3 border-b border-surface-200 dark:border-slate-700 bg-surface-50/80 dark:bg-slate-800/60 px-5 py-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm">
+            <Sparkles className="w-4 h-4" />
           </div>
-          <div className="hidden rounded-2xl border border-brand-500/20 bg-brand-500/10 p-3 text-brand-600 dark:block">
-            <Sparkles className="w-6 h-6" />
+          <div>
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-none">
+              {conversation?.title || emptyTitle || 'Assistant IA'}
+            </p>
+            <p className="mt-0.5 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+              RAG · Sources tracées
+            </p>
           </div>
         </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] font-semibold text-slate-400">En ligne</span>
+        </div>
+      </div>
 
-        <div className="mt-5">
+      {/* ── Messages area ── */}
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5" style={{ maxHeight: 560 }}>
+        {messages.length === 0 && !isSending ? (
+          <div className="flex flex-col items-center justify-center h-48 text-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-brand-200/60 bg-brand-50 dark:bg-brand-950/30 dark:border-brand-800/40 text-brand-600">
+              <MessageSquare className="w-7 h-7" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                {emptyTitle || 'Commencez une conversation'}
+              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-xs">
+                {emptyDescription ||
+                  'Posez une question sur vos documents — les réponses sont ancrées sur vos sources.'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {messages.map((msg, i) => (
+              <MessageBubble key={`${msg.role}-${i}`} message={msg} />
+            ))}
+            {isSending && <TypingIndicator />}
+          </>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* ── Input area (always at the bottom) ── */}
+      <div className="border-t border-surface-200 dark:border-slate-700 bg-surface-50/80 dark:bg-slate-800/60 px-4 py-4">
+        <div className="flex gap-3 items-end">
           <Textarea
-            rows={4}
+            rows={2}
             value={question}
-            onChange={(event) => onQuestionChange(event.target.value)}
-            placeholder={placeholder || 'Pose une question sur tes documents'}
-            className="bg-surface-50 dark:bg-slate-950/40"
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-                onSend();
+            onChange={(e) => onQuestionChange(e.target.value)}
+            placeholder={placeholder || 'Posez une question sur vos documents…'}
+            className="flex-1 resize-none bg-white dark:bg-slate-900 text-sm leading-relaxed min-h-[52px] max-h-[160px]"
+            style={{ height: 'auto' }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+                e.preventDefault();
+                if (question.trim() && !isSending) onSend();
+              }
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                if (question.trim() && !isSending) onSend();
               }
             }}
           />
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
-              <ShieldCheck className="w-4 h-4" />
-              Sources tracees et score de pertinence inclus
-            </div>
-            <Button onClick={onSend} isLoading={isSending} disabled={!question.trim()} size="lg">
-              <Send className="w-4 h-4" />
-              Envoyer
-            </Button>
-          </div>
+          <Button
+            onClick={onSend}
+            isLoading={isSending}
+            disabled={!question.trim() || isSending}
+            className="h-10 w-10 shrink-0 rounded-xl p-0 flex items-center justify-center"
+            title="Envoyer (Entrée)"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
         </div>
-      </Card>
-
-      {!messages.length ? (
-        <Card className="border-dashed border-surface-200 bg-gradient-to-br from-surface-50 via-white to-brand-50/40 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl border border-brand-500/20 bg-brand-500/10 text-brand-600">
-            <MessageSquare className="w-8 h-8" />
-          </div>
-          <p className="text-lg font-bold text-slate-900 dark:text-slate-100">Aucun message pour le moment</p>
-          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-            La premiere reponse creera automatiquement l'historique de conversation.
-          </p>
-        </Card>
-      ) : (
-        <div className="space-y-5">
-          {messages.map((message, index) => (
-            <MessageBubble key={`${message.role}-${message.createdAt}-${index}`} message={message} />
-          ))}
-        </div>
-      )}
+        <p className="mt-2 text-[10px] font-medium text-slate-400 flex items-center gap-1.5">
+          <ShieldCheck className="w-3 h-3" />
+          Entrée pour envoyer · Maj+Entrée pour nouvelle ligne · Sources et score inclus
+        </p>
+      </div>
     </div>
   );
 };

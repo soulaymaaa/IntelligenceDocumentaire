@@ -19,6 +19,7 @@ router.get('/', documentController.listDocuments);
 router.get('/:id', documentController.getDocument);
 router.delete('/:id', documentController.deleteDocument);
 router.patch('/:id/archive', documentController.archiveDocument);
+router.patch('/:id/restore', documentController.restoreDocument);
 
 // OCR & Indexing
 router.post('/:id/run-ocr', documentController.runOcr);

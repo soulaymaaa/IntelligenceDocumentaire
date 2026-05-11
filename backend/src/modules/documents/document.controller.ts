@@ -94,6 +94,19 @@ export const archiveDocument = asyncHandler(async (req: AuthRequest, res: Respon
   return successResponse(res, { document: doc }, 'Document archived');
 });
 
+export const restoreDocument = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const doc = await documentService.restoreDocument(req.params.id, req.userId!);
+
+  await logAction({
+    userId: req.userId!,
+    action: 'DOCUMENT_RESTORE',
+    resourceType: 'Document',
+    resourceId: req.params.id,
+  });
+
+  return successResponse(res, { document: doc }, 'Document restored');
+});
+
 export const runOcr = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
   // Validate ownership first
   const doc = await documentService.getDocument(req.params.id, req.userId!);

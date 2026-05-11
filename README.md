@@ -1,6 +1,15 @@
 # Document Intelligence Platform
 
-A production-ready full-stack web application for intelligent document processing — powered by OCR, AI embeddings, semantic search, and RAG-based Q&A.
+A production-ready full-stack web application for intelligent document processing, powered by OCR, embeddings, semantic search, and RAG-based Q&A.
+
+---
+
+## 📖 Project Description
+
+`IntelligenceDocumentaire` transforms uploaded files into searchable, AI-ready knowledge.
+
+The platform allows each authenticated user to upload documents, extract text, build semantic indexes, search by meaning, generate summaries, and ask grounded questions with source citations.  
+It is designed as a modular Next.js + Express + MongoDB architecture with a clear path from local development to production hardening.
 
 ---
 
@@ -11,10 +20,11 @@ A production-ready full-stack web application for intelligent document processin
 | **Secure Auth** | Register / login with JWT + bcrypt |
 | **Document Upload** | Drag-and-drop PDF, JPG, PNG — up to 50 MB |
 | **OCR Pipeline** | Tesseract.js extraction with native PDF text fallback |
-| **Embeddings** | OpenAI `text-embedding-3-small` chunked indexing |
-| **Semantic Search** | Cosine-similarity search across all user documents |
-| **AI Summary** | Map-reduce summarization via `gpt-4o-mini` |
-| **RAG Q&A** | Grounded answers with cited source chunks |
+| **Embeddings** | Local `Xenova/all-MiniLM-L6-v2` chunked indexing |
+| **Semantic Search** | MongoDB Atlas Vector Search (with cosine fallback) |
+| **AI Summary** | Short / detailed / key-points summaries via Groq Llama 3.3 70B |
+| **RAG Q&A** | Grounded answers with cited source chunks, confidence score, relevance % |
+| **Conversational AI** | Persistent conversation threads scoped to a document or global |
 | **Audit Logs** | Every upload, OCR, summary, and Q&A action logged |
 | **User Isolation** | All data scoped to the authenticated user |
 | **Docker Support** | Full docker-compose for local development |
@@ -31,7 +41,7 @@ backend/          Express.js REST API (TypeScript, Modular)
     documents/    CRUD + ownership
     uploads/      Multer file handling
     ocr/          Tesseract.js + pdf-parse pipeline
-    embeddings/   OpenAI embeddings, chunking, cosine search
+    embeddings/   Local embeddings, chunking, Atlas vector search + fallback
     ai/           Summarization (map-reduce)
     rag/          RAG Q&A with source citations
     search/       Semantic query endpoint
@@ -42,13 +52,87 @@ MongoDB            Documents, chunks (embeddings), users, audit logs
 
 ---
 
+## 🔄 Indexing Pipeline — How It Works
+
+When a document is uploaded, the platform automatically runs a 4-stage pipeline that transforms the raw file into a searchable, AI-ready knowledge base.
+
+### Stage 1 — OCR (Text Extraction)
+
+| Input type | Method |
+|---|---|
+| **PDF with native text** | `pdf-parse` (direct text layer extraction — fast, lossless) |
+| **Scanned PDF / image** | Tesseract.js OCR (configurable language, default `fra+eng`) |
+
+The extracted text is stored on the `Document` record as `extractedText`. Page count is recorded when available.
+
+### Stage 2 — Smart Chunking
+
+The raw text is split into overlapping chunks before embedding. The chunker uses a **priority-based boundary detection** strategy:
+
+```
+1. Double-newline paragraph boundaries     ← preferred split point
+2. Headings / numbered sections            ← force new chunk
+3. Sentence-ending punctuation (. ! ?)     ← fallback within paragraph
+4. Word boundary near CHUNK_SIZE           ← last resort
+```
+
+**Parameters (tuned for retrieval quality):**
+
+| Parameter | Value | Rationale |
+|---|---|---|
+| `CHUNK_SIZE` | 600 chars | Small enough for precise retrieval |
+| `CHUNK_OVERLAP` | 120 chars | Preserves cross-boundary context |
+| `MIN_CHUNK_SIZE` | 80 chars | Drops uninformative tiny fragments |
+| `EMBEDDING_BATCH_SIZE` | 8 chunks | Optimised for local CPU inference |
+
+Tiny fragments (< 80 chars) are merged into the preceding chunk rather than stored as noise.
+
+### Stage 3 — Embedding Generation
+
+Each chunk is embedded using the **`Xenova/all-MiniLM-L6-v2`** model running entirely locally (no external API calls):
+
+- Model type: Sentence transformer (384-dimensional dense vectors)
+- Pooling: Mean-pooled, L2-normalised
+- Text limit: 8 000 chars per chunk (model's effective window)
+- Inference: Batched on CPU via the `@xenova/transformers` JS port
+
+Embeddings and metadata (`documentId`, `ownerId`, `chunkIndex`, `tokenCount`) are stored in the `documentchunks` MongoDB collection.
+
+### Stage 4 — Vector Search at Query Time
+
+When the user asks a question:
+
+1. The question is embedded with the **same model** (all-MiniLM-L6-v2).
+2. **If `VECTOR_SEARCH_ENABLED=true`**: MongoDB Atlas `$vectorSearch` ANN lookup (fast at scale).
+3. **Otherwise** (default): In-memory **cosine similarity** across all chunks owned by the user.
+4. Results with similarity < **0.25** are filtered out — preventing irrelevant context from polluting the LLM prompt.
+5. Top-K chunks are formatted as labelled context blocks and sent to the LLM.
+
+### Conversational filtering
+
+Before hitting the retrieval pipeline, the RAG service checks whether the message is **pure small-talk** (hi, hello, merci, etc.). These bypass document retrieval entirely and receive a lightweight conversational reply — so the LLM never dumps document content in response to a greeting.
+
+### Summary generation (multi-format)
+
+Summaries are generated in three formats in a single API call (`mode: "all"`):
+
+| Format | Prompt strategy | Max tokens |
+|---|---|---|
+| **Short** | Executive summary, 2-4 sentences | 300 |
+| **Detailed** | Full narrative, map-reduce for large docs | 1200 |
+| **Key Points** | JSON array of 5-8 bullet points | 600 |
+
+All three are persisted to `summaryShort`, `summaryDetailed`, and `summaryBullets` on the document.
+
+---
+
 ## 🚀 Quick Start (Local)
 
 ### Prerequisites
 
 - Node.js 20+
 - MongoDB running locally (`mongod`) or a MongoDB Atlas URI
-- OpenAI API key (for embeddings, summaries, RAG)
+- One AI provider key (Groq or OpenRouter) or local Ollama (for summaries/RAG)
 
 ### 1. Clone and setup
 
@@ -63,7 +147,7 @@ cd IntelligenceDocumentaire
 # Backend
 cp backend/.env.example backend/.env
 # Edit backend/.env with your values:
-# MONGODB_URI, JWT_SECRET, OPENAI_API_KEY
+# MONGODB_URI, JWT_SECRET, and AI provider config
 
 # Frontend
 cp frontend/.env.example frontend/.env.local
@@ -239,7 +323,9 @@ IntelligenceDocumentaire/
 |---|---|---|
 | `MONGODB_URI` | ✅ | MongoDB connection string |
 | `JWT_SECRET` | ✅ | Min 32 chars random secret |
-| `OPENAI_API_KEY` | ✅ | For embeddings, summaries, RAG |
+| `GROQ_API_KEY` / `OPENROUTER_API_KEY` / `OLLAMA_URL` | ⚠️ One option required | For summaries and RAG |
+| `VECTOR_SEARCH_ENABLED` | | Enable MongoDB Atlas Vector Search (`true`/`false`) |
+| `VECTOR_SEARCH_INDEX_NAME` | | Atlas vector index name (default: `document_chunks_vector_index`) |
 | `PORT` | | Default: 3001 |
 | `UPLOAD_DIR` | | Default: `./uploads` |
 | `MAX_FILE_SIZE_MB` | | Default: 50 |
@@ -251,6 +337,19 @@ IntelligenceDocumentaire/
 | Variable | Required | Description |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | | Default: `http://localhost:3001` |
+
+---
+
+## 🔎 MongoDB Atlas Vector Search Setup
+
+1. Create an Atlas Search index on the `documentchunks` collection.
+2. Use `embedding` as the indexed vector field with `numDimensions: 384` and `similarity: cosine`.
+3. Set in `backend/.env`:
+   - `VECTOR_SEARCH_ENABLED=true`
+   - `VECTOR_SEARCH_INDEX_NAME=document_chunks_vector_index` (or your index name)
+4. Restart the backend.
+
+If Atlas vector search is not available or misconfigured, the backend automatically falls back to cosine similarity search.
 
 ---
 
@@ -269,24 +368,45 @@ IntelligenceDocumentaire/
 
 ## 📋 Assumptions & Known Limitations
 
-1. **Vector Search**: Uses cosine similarity computed in-app. For production with large document sets (>10k chunks), use MongoDB Atlas Vector Search for performance.
+1. **Vector Search**: Atlas Vector Search is supported when enabled; backend automatically falls back to in-app cosine similarity when unavailable.
 2. **Job Queue**: Simple in-process queue — suitable for development. Replace with BullMQ + Redis for production resilience and horizontal scaling.
 3. **File Storage**: Local disk storage. For production, swap to S3-compatible storage (abstraction point in `upload.middleware.ts`).
 4. **OCR Quality**: Depends on document image quality and resolution. Low-resolution scans may produce poor results.
-5. **OpenAI Required**: Embeddings and RAG require a valid OpenAI API key with billing enabled.
+5. **AI Provider Required**: Summaries and RAG require at least one provider (Groq, OpenRouter, or local Ollama).
 6. **Rate Limits**: AI endpoints are rate-limited (20 req/15 min per IP). Adjust in `.env` as needed.
 
 ---
 
 ## 🔮 Recommended Next Improvements
 
-1. **MongoDB Atlas Vector Search** — Replace cosine similarity with proper ANN index for scale
-2. **BullMQ + Redis** — Production-grade background jobs with retry/deadletter
-3. **S3 File Storage** — Replace local uploads with AWS S3 or MinIO
-4. **OCR Language Detection** — Auto-detect document language
-5. **Multi-document RAG** — Explicit cross-document Q&A UI with document picker
-6. **GDPR Export** — User data export endpoint
-7. **Sharing** — Share documents with other users
-8. **WebSocket Progress** — Real-time OCR progress via Server-Sent Events
-9. **PDF Thumbnail Preview** — Visual document thumbnails in listings
-10. **Admin Panel** — User management and system metrics
+### High Priority (Do First)
+
+1. **Frontend/Backend contract alignment**
+   - Add missing `PATCH /api/documents/:id/restore` endpoint used by frontend.
+   - Align summary payload shape between backend and frontend.
+   - Align dashboard analytics fields expected by frontend.
+2. **Authentication hardening**
+   - Remove JWT storage in `localStorage` and prefer secure httpOnly cookie flow.
+   - Add CSRF protection for cookie-based sessions.
+3. **Integration tests for critical flows**
+   - Add contract tests for archive/restore, summary response shape, and dashboard metrics.
+
+### Medium Priority
+
+4. **Scalable OCR queue**
+   - Replace in-process queue with BullMQ + Redis for retries and resilience.
+5. **Scalable semantic search**
+   - Move from in-memory cosine comparisons to MongoDB Atlas Vector Search.
+6. **Protected file delivery**
+   - Replace public static upload exposure with controlled access (proxy or signed URL).
+7. **Operational observability**
+   - Add metrics for OCR duration, embedding latency, AI errors, and queue failures.
+
+### Low Priority / Product Polish
+
+8. **Documentation consistency**
+   - Keep README and functionality docs aligned with real providers and API contracts.
+9. **UI consistency**
+   - Harmonize language and empty/loading states across pages.
+10. **Repository hygiene**
+   - Ignore generated artifacts (`.next`, temporary uploads) and keep commits clean.

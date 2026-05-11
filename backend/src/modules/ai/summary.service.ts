@@ -1,49 +1,140 @@
 import { DocumentModel } from '../documents/document.model';
-import { DocumentChunkModel } from '../embeddings/chunk.model';
-import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { NotFoundError, ForbiddenError } from '../../utils/errors';
-import { chunkArray } from '../../utils/helpers';
 import { chatCompletionWithRetry } from '../../utils/llm';
 
 const MAX_CONTEXT_CHARS = 12000;
 
-// ── Summarization ─────────────────────────────────────────────────────────────
+export interface SummaryPayload {
+  short: string;
+  detailed: string;
+  keyPoints: string[];
+}
 
-const summarizeChunk = async (text: string): Promise<string> => {
+// ── Individual summary generators ────────────────────────────────────────────
+
+const buildShortSummary = async (text: string): Promise<string> => {
   return chatCompletionWithRetry({
-    model: 'meta-llama/llama-3.3-70b-instruct:free',
     messages: [
       {
         role: 'system',
-        content:
-          'You are a document analysis assistant. Summarize the following document excerpt concisely and accurately in the same language as the text.',
+        content: `You are a document analysis expert. Write a concise executive summary of the document in 2-4 sentences.
+Rules:
+- Capture the main topic, purpose, and key conclusion.
+- Be direct and professional.
+- Do NOT use bullet points. Write as plain prose.
+- Respond in the same language as the document.`,
       },
-      { role: 'user', content: text },
+      { role: 'user', content: `Summarize this document:\n\n${text.substring(0, MAX_CONTEXT_CHARS)}` },
     ],
     temperature: 0.3,
-    max_tokens: 500,
+    max_tokens: 300,
   });
 };
 
-const combineSummaries = async (summaries: string[]): Promise<string> => {
-  const combined = summaries.join('\n\n---\n\n');
+const buildDetailedSummary = async (text: string): Promise<string> => {
+  if (text.length <= MAX_CONTEXT_CHARS) {
+    return chatCompletionWithRetry({
+      messages: [
+        {
+          role: 'system',
+          content: `You are a document analysis expert. Write a thorough, structured summary of the document.
+Rules:
+- Cover all major sections, arguments, and conclusions.
+- Use clear paragraphs with logical flow.
+- Be comprehensive yet readable (aim for 3-6 paragraphs).
+- Do NOT list everything verbatim — synthesize and explain.
+- Respond in the same language as the document.`,
+        },
+        { role: 'user', content: `Write a detailed summary of this document:\n\n${text}` },
+      ],
+      temperature: 0.3,
+      max_tokens: 1200,
+    });
+  }
+
+  // Map-reduce for large documents
+  const segments: string[] = [];
+  for (let i = 0; i < text.length; i += MAX_CONTEXT_CHARS) {
+    segments.push(text.substring(i, i + MAX_CONTEXT_CHARS));
+  }
+
+  const partials: string[] = [];
+  for (const seg of segments) {
+    const partial = await chatCompletionWithRetry({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a document analysis assistant. Summarize the following excerpt concisely.',
+        },
+        { role: 'user', content: seg },
+      ],
+      temperature: 0.3,
+      max_tokens: 600,
+    });
+    partials.push(partial);
+  }
+
   return chatCompletionWithRetry({
-    model: 'meta-llama/llama-3.3-70b-instruct:free',
     messages: [
       {
         role: 'system',
-        content:
-          'You are a document analysis assistant. You have been given multiple partial summaries of a document. Create a single, coherent, comprehensive summary that captures the key points, in the same language as the content.',
+        content: `You are a document analysis expert. You have partial summaries of a large document.
+Combine them into a single, coherent, comprehensive summary (3-6 paragraphs).
+Respond in the same language as the content.`,
       },
-      { role: 'user', content: combined },
+      { role: 'user', content: partials.join('\n\n---\n\n') },
     ],
     temperature: 0.3,
-    max_tokens: 800,
+    max_tokens: 1200,
   });
 };
 
-export const generateSummary = async (documentId: string, ownerId: string): Promise<string> => {
+const buildKeyPoints = async (text: string): Promise<string[]> => {
+  const raw = await chatCompletionWithRetry({
+    messages: [
+      {
+        role: 'system',
+        content: `You are a document analysis expert. Extract the 5-8 most important key points from this document.
+Rules:
+- Output ONLY a JSON array of strings, no other text.
+- Each string is one key point (1-2 sentences max).
+- Cover the most important facts, conclusions, and insights.
+- Respond in the same language as the document.
+- Format: ["Point 1", "Point 2", ...]`,
+      },
+      { role: 'user', content: `Extract key points from:\n\n${text.substring(0, MAX_CONTEXT_CHARS)}` },
+    ],
+    temperature: 0.2,
+    max_tokens: 600,
+  });
+
+  try {
+    // Strip markdown code block if present
+    const cleaned = raw.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed) && parsed.every((p) => typeof p === 'string')) {
+      return parsed.filter((p) => p.trim().length > 0);
+    }
+  } catch {
+    // Fallback: split by newlines/bullets
+    const lines = raw
+      .split(/\n+/)
+      .map((l) => l.replace(/^[-•*\d.]+\s*/, '').trim())
+      .filter((l) => l.length > 10);
+    if (lines.length > 0) return lines;
+  }
+
+  return [raw.trim()];
+};
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export const generateSummary = async (
+  documentId: string,
+  ownerId: string,
+  mode: 'short' | 'detailed' | 'key_points' | 'all' = 'all'
+): Promise<SummaryPayload> => {
   const doc = await DocumentModel.findById(documentId);
   if (!doc) throw new NotFoundError('Document');
   if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
@@ -53,34 +144,24 @@ export const generateSummary = async (documentId: string, ownerId: string): Prom
   }
 
   const text = doc.extractedText;
+  logger.info(`Generating summary for document ${documentId} (mode: ${mode})`);
 
-  let summary: string;
+  const generateAll = mode === 'all';
 
-  if (text.length <= MAX_CONTEXT_CHARS) {
-    // Single-pass summarization
-    logger.info(`Summarizing document ${documentId} in single pass`);
-    summary = await summarizeChunk(text);
-  } else {
-    // Map-reduce: chunk → summarize each → combine
-    logger.info(`Summarizing document ${documentId} using map-reduce`);
-    const segments: string[] = [];
-    for (let i = 0; i < text.length; i += MAX_CONTEXT_CHARS) {
-      segments.push(text.substring(i, i + MAX_CONTEXT_CHARS));
-    }
+  const [short, detailed, keyPoints] = await Promise.all([
+    generateAll || mode === 'short' ? buildShortSummary(text) : Promise.resolve(doc.summaryShort || ''),
+    generateAll || mode === 'detailed' ? buildDetailedSummary(text) : Promise.resolve(doc.summaryDetailed || ''),
+    generateAll || mode === 'key_points' ? buildKeyPoints(text) : Promise.resolve(doc.summaryBullets || []),
+  ]);
 
-    // Process sequentially to avoid rate limiting on parallel calls
-    const partialSummaries: string[] = [];
-    for (const seg of segments) {
-      const s = await summarizeChunk(seg);
-      partialSummaries.push(s);
-    }
+  // Persist all generated fields back to the document
+  const update: Record<string, unknown> = { summary: detailed || short };
+  if (generateAll || mode === 'short') update.summaryShort = short;
+  if (generateAll || mode === 'detailed') update.summaryDetailed = detailed;
+  if (generateAll || mode === 'key_points') update.summaryBullets = keyPoints;
 
-    summary = await combineSummaries(partialSummaries);
-  }
+  await DocumentModel.findByIdAndUpdate(documentId, update);
+  logger.info(`Summaries saved for document ${documentId}`);
 
-  // Persist
-  await DocumentModel.findByIdAndUpdate(documentId, { summary });
-  logger.info(`Summary saved for document ${documentId}`);
-
-  return summary;
+  return { short, detailed, keyPoints };
 };

@@ -13,6 +13,9 @@ export interface IDocument extends Document {
   extractedText?: string;
   pageCount?: number;
   summary?: string;
+  summaryShort?: string;
+  summaryDetailed?: string;
+  summaryBullets?: string[];
   archived: boolean;
   errorMessage?: string;
   createdAt: Date;
@@ -64,6 +67,18 @@ const documentSchema = new Schema<IDocument>(
     },
     summary: {
       type: String,
+      default: undefined,
+    },
+    summaryShort: {
+      type: String,
+      default: undefined,
+    },
+    summaryDetailed: {
+      type: String,
+      default: undefined,
+    },
+    summaryBullets: {
+      type: [String],
       default: undefined,
     },
     archived: {
