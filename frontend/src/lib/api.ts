@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import type {
-  User, Document, DashboardStats, PaginationMeta,
+  User, Document, Dossier, DashboardStats, PaginationMeta,
   SearchResult, RagAnswer, ApiResponse, SummaryPayload, Conversation, RegisterResponse, ResendVerificationResponse, LoginResponse, ForgotPasswordResponse
 } from '@/types';
 
@@ -112,7 +112,7 @@ export const documentsApi = {
   },
 
   list: async (params?: {
-    page?: number; limit?: number; status?: string; search?: string; archived?: boolean;
+    page?: number; limit?: number; status?: string; search?: string; archived?: boolean; dossierId?: string;
   }): Promise<{ documents: Document[]; meta: PaginationMeta }> => {
     const res = await api.get<ApiResponse<{ documents: Document[]; meta: PaginationMeta }>>(
       '/documents', { params }
@@ -168,6 +168,34 @@ export const documentsApi = {
   reindex: async (id: string): Promise<void> => {
     await api.post(`/documents/${id}/reindex`);
   },
+
+  move: async (id: string, dossierId: string | null): Promise<Document> => {
+    const res = await api.patch<ApiResponse<{ document: Document }>>(`/documents/${id}/move`, { dossierId });
+    return extractData(res).document;
+  },
+};
+
+// ── Dossiers ──────────────────────────────────────────────────────────────────
+
+export const dossiersApi = {
+  list: async (): Promise<Dossier[]> => {
+    const res = await api.get<ApiResponse<{ dossiers: Dossier[] }>>('/dossiers');
+    return extractData(res).dossiers;
+  },
+
+  create: async (name: string, color?: string): Promise<Dossier> => {
+    const res = await api.post<ApiResponse<{ dossier: Dossier }>>('/dossiers', { name, color });
+    return extractData(res).dossier;
+  },
+
+  update: async (id: string, updates: { name?: string; color?: string }): Promise<Dossier> => {
+    const res = await api.patch<ApiResponse<{ dossier: Dossier }>>(`/dossiers/${id}`, updates);
+    return extractData(res).dossier;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/dossiers/${id}`);
+  },
 };
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -201,6 +229,18 @@ export const aiApi = {
 
   askGlobal: async (question: string, topK = 5): Promise<RagAnswer> => {
     const res = await api.post<ApiResponse<RagAnswer>>('/ai/ask-global', { question, topK });
+    return extractData(res);
+  },
+
+  translate: async (
+    id: string,
+    targetLanguage: 'ar' | 'en' | 'fr',
+    sourceLanguage: 'ar' | 'en' | 'fr' | 'auto' = 'auto'
+  ): Promise<{ translation: string }> => {
+    const res = await api.post<ApiResponse<{ translation: string }>>(
+      `/ai/documents/${id}/translate`,
+      { targetLanguage, sourceLanguage }
+    );
     return extractData(res);
   },
 };

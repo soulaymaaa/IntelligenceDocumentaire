@@ -13,6 +13,7 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.0",
     "@xenova/transformers": "^2.17.2",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
@@ -29,6 +30,7 @@
     "nodemailer": "^8.0.4",
     "openai": "^4.70.0",
     "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^5.7.284",
     "sharp": "^0.33.5",
     "tesseract.js": "^5.1.0",
     "uuid": "^10.0.0",

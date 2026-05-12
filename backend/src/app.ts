@@ -16,6 +16,7 @@ import documentRoutes from './modules/documents/document.routes';
 import searchRoutes from './modules/search/search.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import conversationRoutes from './modules/conversations/conversation.routes';
+import dossierRoutes from './modules/dossiers/dossier.routes';
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/dossiers', dossierRoutes);
 
 // 404 handler
 app.use((_req, res) => {

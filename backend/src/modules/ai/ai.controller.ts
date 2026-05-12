@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { generateSummary } from './summary.service';
+import { translateDocument } from './translation.service';
 import { askQuestion } from '../rag/rag.service';
 import { logAction } from '../audit/audit.service';
 import { asyncHandler, successResponse } from '../../utils/helpers';
@@ -95,6 +96,35 @@ export const askDocument = asyncHandler(
       });
 
       return successResponse(res, result);
+    } catch (err) {
+      handleAiError(err);
+    }
+  }
+);
+
+export const translate = asyncHandler(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const schema = z.object({
+        targetLanguage: z.enum(['ar', 'en', 'fr']),
+        sourceLanguage: z.enum(['ar', 'en', 'fr', 'auto']).optional().default('auto'),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
+
+      const { targetLanguage, sourceLanguage } = parsed.data;
+      const result = await translateDocument(id, req.userId!, targetLanguage, sourceLanguage);
+
+      await logAction({
+        userId: req.userId!,
+        action: 'DOCUMENT_TRANSLATED',
+        resourceType: 'Document',
+        resourceId: id,
+        metadata: { targetLanguage, sourceLanguage },
+      });
+
+      return successResponse(res, result, 'Translation complete');
     } catch (err) {
       handleAiError(err);
     }

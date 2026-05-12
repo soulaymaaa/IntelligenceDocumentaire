@@ -21,6 +21,9 @@ router.delete('/:id', documentController.deleteDocument);
 router.patch('/:id/archive', documentController.archiveDocument);
 router.patch('/:id/restore', documentController.restoreDocument);
 
+// Dossier assignment
+router.patch('/:id/move', documentController.moveDocument);
+
 // OCR & Indexing
 router.post('/:id/run-ocr', documentController.runOcr);
 router.post('/:id/reindex', documentController.reindexDocument);

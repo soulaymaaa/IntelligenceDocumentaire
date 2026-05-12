@@ -1,16 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText } from 'lucide-react';
+import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText, FolderInput, X } from 'lucide-react';
 import { cn, formatBytes, formatDateShort, truncate } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/Badge';
-import type { Document } from '@/types';
+import type { Document, Dossier } from '@/types';
+import { useState } from 'react';
 
 interface DocumentCardProps {
   document: Document;
+  dossiers?: Dossier[];
   onDelete?: (id: string) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
+  onMove?: (id: string, dossierId: string | null) => void;
 }
 
 const mimeIcon = (mime: string) => {
@@ -18,10 +21,14 @@ const mimeIcon = (mime: string) => {
   return <Image className="w-5 h-5 text-blue-400" />;
 };
 
-export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore }: DocumentCardProps) => {
+export const DocumentCard = ({ document: doc, dossiers = [], onDelete, onArchive, onRestore, onMove }: DocumentCardProps) => {
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+
+  const currentDossier = dossiers.find((d) => d._id === doc.dossierId);
+
   return (
     <div className={cn(
-      'group bg-white rounded-2xl p-5 shadow-sm border border-slate-200',
+      'group bg-white rounded-2xl p-5 shadow-sm border border-slate-200 relative',
       'hover:shadow-md hover:border-brand-200 hover:translate-y-[-2px] transition-all duration-300',
     )}>
       <div className="flex items-start gap-4">
@@ -42,6 +49,15 @@ export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore }: 
 
             {/* Action menu */}
             <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              {onMove && (
+                <button
+                  onClick={() => setShowFolderPicker((v) => !v)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-all border border-transparent hover:border-brand-100"
+                  title="Move to dossier"
+                >
+                  <FolderInput className="w-4 h-4" />
+                </button>
+              )}
               {!doc.archived && onArchive && (
                 <button
                   onClick={() => onArchive(doc._id)}
@@ -83,6 +99,15 @@ export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore }: 
               <Calendar className="w-3.5 h-3.5 opacity-70" />
               {formatDateShort(doc.createdAt)}
             </span>
+            {currentDossier && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: currentDossier.color + '22', color: currentDossier.color }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: currentDossier.color }} />
+                {currentDossier.name}
+              </span>
+            )}
           </div>
 
           {/* Summary preview */}
@@ -108,6 +133,44 @@ export const DocumentCard = ({ document: doc, onDelete, onArchive, onRestore }: 
           </div>
         </div>
       </div>
+
+      {/* Folder picker dropdown */}
+      {showFolderPicker && onMove && (
+        <div className="absolute right-4 top-12 z-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-2 min-w-[160px]">
+          <div className="flex items-center justify-between px-2 pb-1.5 mb-1 border-b border-slate-100 dark:border-slate-700">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Dossier</span>
+            <button onClick={() => setShowFolderPicker(false)} className="text-slate-300 hover:text-slate-500">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {doc.dossierId && (
+            <button
+              onClick={() => { onMove(doc._id, null); setShowFolderPicker(false); }}
+              className="w-full text-left px-2.5 py-1.5 text-xs rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              Remove from dossier
+            </button>
+          )}
+          {dossiers.map((d) => (
+            <button
+              key={d._id}
+              onClick={() => { onMove(doc._id, d._id); setShowFolderPicker(false); }}
+              className={cn(
+                'w-full text-left px-2.5 py-1.5 text-xs rounded-lg flex items-center gap-2 transition-colors',
+                doc.dossierId === d._id
+                  ? 'font-bold text-brand-600 bg-brand-50'
+                  : 'text-slate-600 hover:bg-slate-50'
+              )}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+              <span className="truncate">{d.name}</span>
+            </button>
+          ))}
+          {dossiers.length === 0 && (
+            <p className="px-2.5 py-1.5 text-[11px] text-slate-400 italic">No dossiers yet</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };

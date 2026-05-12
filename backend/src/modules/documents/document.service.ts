@@ -13,15 +13,17 @@ interface ListDocumentsParams {
   status?: DocumentStatus;
   search?: string;
   archived?: boolean;
+  dossierId?: string;
 }
 
 export const listDocuments = async (params: ListDocumentsParams) => {
-  const { ownerId, page = 1, limit = 20, status, search, archived } = params;
+  const { ownerId, page = 1, limit = 20, status, search, archived, dossierId } = params;
 
   const query: any = { ownerId };
   if (status) query.status = status;
   if (typeof archived === 'boolean') query.archived = archived;
   if (search) query.originalName = { $regex: search, $options: 'i' };
+  if (dossierId) query.dossierId = dossierId;
 
   const [docs, total] = await Promise.all([
     DocumentModel.find(query)
@@ -107,6 +109,22 @@ export const deleteDocument = async (id: string, ownerId: string): Promise<void>
 
   // Delete document record
   await DocumentModel.findByIdAndDelete(id);
+};
+
+export const moveDocument = async (id: string, ownerId: string, dossierId: string | null): Promise<IDocument> => {
+  const doc = await DocumentModel.findById(id);
+  if (!doc) throw new NotFoundError('Document');
+  if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
+
+  if (dossierId) {
+    (doc as any).dossierId = dossierId;
+  } else {
+    (doc as any).dossierId = undefined;
+    await DocumentModel.findByIdAndUpdate(id, { $unset: { dossierId: 1 } });
+    return doc;
+  }
+  await doc.save();
+  return doc;
 };
 
 export const getDashboardStats = async (ownerId: string) => {

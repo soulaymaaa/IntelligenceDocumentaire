@@ -58,6 +58,7 @@ export const listDocuments = asyncHandler(async (req: AuthRequest, res: Response
     ownerId: req.userId!,
     ...parsed.data,
     status: parsed.data.status as any,
+    dossierId: req.query.dossierId as string | undefined,
   });
 
   return successResponse(res, result);
@@ -134,6 +135,15 @@ export const reindexDocument = asyncHandler(async (req: AuthRequest, res: Respon
   });
 
   return successResponse(res, null, 'Re-indexing job scheduled');
+});
+
+export const moveDocument = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const schema = z.object({ dossierId: z.string().nullable() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) throw new ValidationError('Invalid body');
+
+  const doc = await documentService.moveDocument(req.params.id, req.userId!, parsed.data.dossierId);
+  return successResponse(res, { document: doc }, 'Document moved');
 });
 
 export const getDashboard = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
