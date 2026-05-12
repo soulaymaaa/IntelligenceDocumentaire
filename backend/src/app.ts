@@ -25,6 +25,7 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: false,
+  // Allow PDF iframes to be embedded from the frontend (same-machine different port)
   frameguard: false,
   crossOriginEmbedderPolicy: false,
 }));

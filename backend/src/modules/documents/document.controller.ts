@@ -295,7 +295,6 @@ export const moveDocumentToFolder = asyncHandler(async (req: AuthRequest, res: R
 
   return successResponse(res, { document: doc }, 'Document moved successfully');
 });
-
 export const runOcr = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
   // Validate ownership first
   const doc = await documentService.getDocument(req.params.id, req.userId!);

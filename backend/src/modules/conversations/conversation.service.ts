@@ -91,12 +91,16 @@ export const sendMessage = async (
     role: 'assistant' as const,
     content: answer.answer,
     createdAt: new Date(),
+    relevanceScore: answer.relevanceScore,
+    confidence: answer.confidence,
     sources: answer.sources,
-    highlights: answer.sources.map((source, index) => ({
-      sourceIndex: index,
-      snippet: source.text,
-      matchedTerms: [],
-    })),
+    highlights: answer.highlights?.length
+      ? answer.highlights
+      : answer.sources.map((source, index) => ({
+          sourceIndex: index,
+          snippet: source.text.substring(0, 300),
+          matchedTerms: [],
+        })),
   };
 
   conversation.messages.push(assistantMessage);

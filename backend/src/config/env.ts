@@ -30,6 +30,9 @@ const envSchema = z.object({
   GROQ_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
   OLLAMA_URL: z.string().default('http://localhost:11434'),
+  // ── MongoDB Atlas Vector Search ────────────────────────────────────────────
+  VECTOR_SEARCH_ENABLED: z.string().default('false').transform((v) => v === 'true'),
+  VECTOR_SEARCH_INDEX_NAME: z.string().default('document_chunks_vector_index'),
 });
 
 const parsed = envSchema.safeParse(process.env);
