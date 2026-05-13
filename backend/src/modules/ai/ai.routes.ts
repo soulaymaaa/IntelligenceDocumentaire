@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/authenticate';
 import { aiLimiter } from '../../middleware/rateLimiter';
-import { summarizeDocument, translateDocumentHandler, generateMindMapHandler, askDocument, askGlobal } from './ai.controller';
+import { summarizeDocument, askDocument, askGlobal, translate, generateMindMapHandler } from './ai.controller';
 
 const router = Router();
 
@@ -10,7 +10,7 @@ router.use(aiLimiter);
 
 router.post('/documents/:id/summary', summarizeDocument);
 router.post('/documents/:id/mind-map', generateMindMapHandler);
-router.post('/documents/:id/translate', translateDocumentHandler);
+router.post('/documents/:id/translate', translate);
 router.post('/documents/:id/ask', askDocument);
 router.post('/ask-global', askGlobal);
 

@@ -87,33 +87,6 @@ export const summarizeDocument = asyncHandler(
   }
 );
 
-export const translateDocumentHandler = asyncHandler(
-  async (req: AuthRequest, res: Response, _next: NextFunction) => {
-    try {
-      const { id } = req.params;
-      const parsed = translationSchema.safeParse(req.body);
-
-      if (!parsed.success) throw new ValidationError('Target language is required');
-
-      const { targetLanguage } = parsed.data;
-
-      const translation = await translateDocument(id, targetLanguage, req.userId!);
-
-      await logAction({
-        userId: req.userId!,
-        action: 'DOCUMENT_TRANSLATED',
-        resourceType: 'Document',
-        resourceId: id,
-        metadata: { targetLanguage },
-      });
-
-      return successResponse(res, { translation }, 'Document translated successfully');
-    } catch (err) {
-      handleAiError(err);
-    }
-  }
-);
-
 export const generateMindMapHandler = asyncHandler(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
     try {
@@ -154,6 +127,35 @@ export const askDocument = asyncHandler(
       });
 
       return successResponse(res, result);
+    } catch (err) {
+      handleAiError(err);
+    }
+  }
+);
+
+export const translate = asyncHandler(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const schema = z.object({
+        targetLanguage: z.string().trim().min(2).max(80),
+        sourceLanguage: z.string().optional().default('auto'),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
+
+      const { targetLanguage, sourceLanguage } = parsed.data;
+      const result = await translateDocument(id, targetLanguage, req.userId!, sourceLanguage);
+
+      await logAction({
+        userId: req.userId!,
+        action: 'DOCUMENT_TRANSLATED',
+        resourceType: 'Document',
+        resourceId: id,
+        metadata: { targetLanguage, sourceLanguage },
+      });
+
+      return successResponse(res, result, 'Translation complete');
     } catch (err) {
       handleAiError(err);
     }

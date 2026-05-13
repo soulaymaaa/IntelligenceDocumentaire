@@ -5,6 +5,7 @@ export type DocumentStatus = 'pending' | 'processing_ocr' | 'indexed' | 'error' 
 export interface IDocument extends Document {
   ownerId: Types.ObjectId;
   folderId?: Types.ObjectId | null;
+  dossierId?: Types.ObjectId;
   filename: string;
   originalName: string;
   mimeType: string;
@@ -38,6 +39,12 @@ const documentSchema = new Schema<IDocument>(
       ref: 'DocumentFolder',
       default: null,
       index: true,
+    },
+    dossierId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Dossier',
+      default: undefined,
+    },
     },
     filename: {
       type: String,

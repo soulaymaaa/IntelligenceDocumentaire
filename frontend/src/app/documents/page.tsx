@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { SkeletonCard } from '@/components/ui/Spinner';
-import { documentsApi } from '@/lib/api';
+import { documentsApi, dossiersApi } from '@/lib/api';
 import { useLanguage } from '@/providers/LanguageProvider';
+import { getErrorMessage } from '@/lib/utils';
 import type { DocumentStatus } from '@/types';
 
 export default function DocumentsPage() {
@@ -105,12 +106,17 @@ export default function DocumentsPage() {
     },
   });
 
-  const moveToFolderMutation = useMutation({
-    mutationFn: ({ id, folderId }: { id: string; folderId: string | null }) => documentsApi.moveToFolder(id, folderId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['documents'] });
-      qc.invalidateQueries({ queryKey: ['document-folders'] });
-    },
+
+
+  const moveMutation = useMutation({
+    mutationFn: ({ id, dossierId }: { id: string; dossierId: string | null }) =>
+      documentsApi.move(id, dossierId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+  });
+
+  const { data: dossiersData } = useQuery({
+    queryKey: ['dossiers'],
+    queryFn: () => dossiersApi.list(),
   });
 
   const docs = data?.documents || [];
@@ -196,18 +202,14 @@ export default function DocumentsPage() {
               <DocumentCard
                 key={doc._id}
                 document={doc}
-                folders={folders}
+                dossiers={dossiersData || []}
                 onDelete={(id) => setDeleteTarget(id)}
                 onArchive={(id) => archiveMutation.mutate(id)}
                 onRestore={(id) => restoreMutation.mutate(id)}
                 onRename={async (id, newName) => {
                   await renameMutation.mutateAsync({ id, newName });
                 }}
-                onMoveToFolder={async (id, folderId) => {
-                  await moveToFolderMutation.mutateAsync({ id, folderId });
-                }}
-                folderSelectLabel={folderCopy.selectLabel}
-                noFolderLabel={folderCopy.noFolder}
+                onMove={(id, dossierId) => moveMutation.mutate({ id, dossierId })}
               />
             ))}
           </div>

@@ -9,10 +9,20 @@ export interface User {
   updatedAt: string;
 }
 
+export interface Dossier {
+  _id: string;
+  ownerId: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Document {
   _id: string;
   ownerId: string;
-  folderId?: string | null;
+  dossierId?: string;
+  folderId?: string | null; // Keep for compatibility with older code if any
   filename: string;
   originalName: string;
   mimeType: string;
