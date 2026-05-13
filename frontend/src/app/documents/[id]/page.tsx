@@ -101,9 +101,20 @@ const PdfPreview = ({ url, originalName }: { url: string; originalName: string }
   );
 };
 
+const translationLanguages = [
+  { value: 'French', label: 'Français' },
+  { value: 'English', label: 'Anglais' },
+  { value: 'Spanish', label: 'Espagnol' },
+  { value: 'German', label: 'Allemand' },
+  { value: 'Italian', label: 'Italien' },
+  { value: 'Portuguese', label: 'Portugais' },
+  { value: 'Arabic', label: 'Arabe' },
+];
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DocumentDetailPage() {
+  const { copy } = useLanguage();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
@@ -113,6 +124,12 @@ export default function DocumentDetailPage() {
   const [question, setQuestion] = useState('');
   const [showDelete, setShowDelete] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [showMoveFolder, setShowMoveFolder] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState('French');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const translationRef = useRef<HTMLDivElement>(null);
 
   const { data: doc, isLoading, error } = useQuery<Document>({
     queryKey: ['document', id],
@@ -122,6 +139,15 @@ export default function DocumentDetailPage() {
       return current?.status === 'pending' || current?.status === 'processing_ocr' ? 3000 : false;
     },
   });
+
+  const { data: folders = [] } = useQuery({
+    queryKey: ['folders'],
+    queryFn: () => documentsApi.listFolders(),
+  });
+
+  useEffect(() => {
+    if (doc) setEditedName(doc.originalName);
+  }, [doc]);
 
   const { data: conversations = [] } = useQuery({
     queryKey: ['conversations', 'document', id],
@@ -185,6 +211,62 @@ export default function DocumentDetailPage() {
     mutationFn: () => aiApi.generateMindMap(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['document', id] }),
   });
+
+  const translateMutation = useMutation({
+    mutationFn: (lang: string) => aiApi.translate(id, lang),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document', id] }),
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: (newName: string) => documentsApi.rename(id, newName),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['document', id] });
+      setIsEditingName(false);
+    },
+  });
+
+  const moveFolderMutation = useMutation({
+    mutationFn: (folderId: string | null) => documentsApi.moveToFolder(id, folderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['document', id] });
+      setShowMoveFolder(false);
+    },
+  });
+
+  const askMutation = useMutation({
+    mutationFn: (q: string) => {
+      if (selectedConversationId) {
+        return conversationsApi.sendMessage(selectedConversationId, { question: q, documentId: id });
+      }
+      return aiApi.ask(id, q);
+    },
+    onSuccess: () => {
+      setQuestion('');
+      qc.invalidateQueries({ queryKey: ['conversation', selectedConversationId] });
+      qc.invalidateQueries({ queryKey: ['conversations', 'document', id] });
+    },
+  });
+
+  const downloadTranslationAsPdf = async () => {
+    if (!translationRef.current || !doc) return;
+    setIsGeneratingPdf(true);
+    try {
+      const canvas = await html2canvas(translationRef.current, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Translation_${targetLanguage}_${doc.originalName}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const canGenerateMindMap = !!doc?.extractedText && doc.extractedText.length > 200;
+  const canTranslate = !!doc?.extractedText && doc.extractedText.length > 50;
 const summaryData = useMemo<SummaryPayload>(
     () => ({
       short: doc?.summaryShort || '',
@@ -193,6 +275,20 @@ const summaryData = useMemo<SummaryPayload>(
     }),
     [doc]
   );
+
+  const mindMapData = useMemo(() => doc?.mindMap as any, [doc]);
+
+  const translatedText = useMemo(() => {
+    return doc?.translations?.find((t) => t.language === targetLanguage)?.text || '';
+  }, [doc, targetLanguage]);
+
+  const targetLanguageLabel = useMemo(() => {
+    return translationLanguages.find((l) => l.value === targetLanguage)?.label || targetLanguage;
+  }, [targetLanguage]);
+
+  const activeTranslation = useMemo(() => {
+    return doc?.translations?.find((t) => t.language === targetLanguage);
+  }, [doc, targetLanguage]);
 
   const activeAssistantMessage = useMemo(() => {
     const messages = activeConversation?.messages || [];
@@ -831,10 +927,10 @@ __html: highlightText(doc.extractedText || 'Aucun texte extrait disponible.', hi
                       }`}
                     >
                       <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-                        {conv.title}
+                        {conversation.title}
                       </p>
                       <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                        {formatDate(conv.lastMessageAt)}
+                        {formatDate(conversation.lastMessageAt)}
                       </p>
                     </button>
                   ))
