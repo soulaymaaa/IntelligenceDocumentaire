@@ -51,20 +51,9 @@ const processJob = async (job: Job): Promise<void> => {
 
     const extractedText = await performOcr(documentId);
 
-<<<<<<< HEAD
-    if (extractedText && extractedText.trim().length > 0) {
-      // Index embeddings
-      await indexDocument(job.documentId, extractedText);
-      await updateDocumentStatus(job.documentId, 'indexed', { extractedText } as any);
-      logger.info(`OCR processing and indexing successful for document: ${job.documentId}`);
-    } else {
-      await updateDocumentStatus(job.documentId, 'error', {
-        errorMessage: 'No text could be extracted from this document',
-=======
     if (!extractedText || extractedText.trim().length === 0) {
       await updateDocumentStatus(documentId, 'error', {
         errorMessage: 'No text could be extracted from this document. The file may be blank or in an unsupported format.',
->>>>>>> 8cc1307b0c4b1c4690e57af12a159aa6776fc8cd
       } as any);
       logger.warn(`OCR produced no text for ${documentId}`);
       return;

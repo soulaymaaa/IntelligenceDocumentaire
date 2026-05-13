@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-<<<<<<< HEAD
 import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText, FolderInput, X, Pencil, Check, Presentation, FileSpreadsheet } from 'lucide-react';
 import { cn, formatBytes, formatDateShort, truncate } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/Badge';

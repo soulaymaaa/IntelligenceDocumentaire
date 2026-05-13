@@ -45,7 +45,6 @@ const documentSchema = new Schema<IDocument>(
       ref: 'Dossier',
       default: undefined,
     },
-    },
     filename: {
       type: String,
       required: true,

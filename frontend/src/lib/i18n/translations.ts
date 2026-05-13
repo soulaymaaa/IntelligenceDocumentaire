@@ -12,6 +12,9 @@ export const translations = {
       backToLogin: "Retour à la connexion",
       continue: "Continuer",
       calendar: "Planificateur",
+      dossiers: "Dossiers",
+      newDossier: "Nouveau dossier",
+      dossierNamePlaceholder: "Nom du dossier...",
     },
     footer: {
       rights: "© 2026 DocIntel. Tous droits réservés. Intelligence Artificielle Documentaire.",
@@ -399,6 +402,9 @@ export const translations = {
       backToLogin: "Back to login",
       continue: "Continue",
       calendar: "Planner",
+      dossiers: "Dossiers",
+      newDossier: "New dossier",
+      dossierNamePlaceholder: "Dossier name...",
     },
     footer: {
       rights: "© 2026 DocIntel. All rights reserved. Document Artificial Intelligence.",

@@ -254,18 +254,16 @@ export default function FoldersPage() {
                   <DocumentCard
                     key={doc._id}
                     document={doc}
-                    folders={folders}
+                    dossiers={folders as any}
                     onDelete={(id) => setDeleteDocTarget(id)}
                     onArchive={(id) => archiveDocMutation.mutate(id)}
                     onRestore={(id) => restoreDocMutation.mutate(id)}
                     onRename={async (id, newName) => {
                       await renameDocMutation.mutateAsync({ id, newName });
                     }}
-                    onMoveToFolder={async (id, folderId) => {
+                    onMove={async (id, folderId) => {
                       await moveToFolderMutation.mutateAsync({ id, folderId });
                     }}
-                    folderSelectLabel={folderCopy.selectLabel}
-                    noFolderLabel={folderCopy.noFolder}
                   />
                 ))}
               </div>

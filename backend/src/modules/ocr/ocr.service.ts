@@ -451,6 +451,7 @@ const getPdfRenderer = async (): Promise<PdfRenderer | null> => {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
+
 export const performOcr = async (documentId: string): Promise<string> => {
   const doc = await DocumentModel.findById(documentId);
   if (!doc) throw new NotFoundError('Document');
@@ -466,10 +467,8 @@ export const performOcr = async (documentId: string): Promise<string> => {
 
   let raw: string;
 
-
   if (doc.mimeType === 'application/pdf') {
-<<<<<<< HEAD
-    return extractTextFromPdf(filePath, documentId);
+    raw = await extractFromPdf(filePath, documentId);
   } else if (isOfficeType(doc.mimeType)) {
     const text = await extractTextFromOffice(filePath, doc.mimeType);
     
@@ -485,33 +484,19 @@ export const performOcr = async (documentId: string): Promise<string> => {
       }
     }
     
-    return text;
+    raw = text;
   } else if (isTextType(doc.mimeType)) {
-    return fs.readFileSync(filePath, 'utf-8');
+    raw = fs.readFileSync(filePath, 'utf-8');
   } else {
+    // Image detected
     logger.info(`Image detected - preparing PDF preview and OCR for: ${doc.originalName}`);
     await ensureImagePdfPreview(filePath, documentId, doc.filename, doc.ocrPdfPath);
-    
-    // Pre-process image for better OCR using the same "Magic Color" logic
-    const enhancedFilename = `enhanced_${doc.filename}`;
-    const enhancedPath = path.resolve(process.cwd(), env.UPLOAD_DIR, enhancedFilename);
-    
-    // Using a simpler version of the Magic Color pipeline for OCR optimization
-    await sharp(filePath)
-      .rotate()
-      .grayscale()
-      .normalize()
-      .linear(1.5, -0.15) // High contrast for Tesseract
-      .sharpen({ sigma: 1.5 })
-      .toFile(enhancedPath);
-
-    try {
-      const { text } = await ocrWithTesseract(enhancedPath);
-      return text;
-    } finally {
-      deleteTempFile(enhancedPath);
-    }
+    raw = await extractFromImage(filePath);
   }
+
+  const cleaned = cleanText(raw);
+  logger.info(`OCR done: ${cleaned.length} chars, ~${wordCount(cleaned)} words`);
+  return cleaned;
 };
 
 const ensureImagePdfPreview = async (
@@ -533,23 +518,6 @@ const ensureImagePdfPreview = async (
   } catch (error) {
     logger.warn(`Image PDF preview generation failed for ${filename}:`, error);
   }
-};
-
-const deleteTempFile = (filePath: string): void => {
-  try {
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  } catch {
-    // Temporary files should not block OCR completion.
-=======
-    raw = await extractFromPdf(filePath, documentId);
-  } else {
-    raw = await extractFromImage(filePath);
->>>>>>> 8cc1307b0c4b1c4690e57af12a159aa6776fc8cd
-  }
-
-  const cleaned = cleanText(raw);
-  logger.info(`OCR done: ${cleaned.length} chars, ~${wordCount(cleaned)} words`);
-  return cleaned;
 };
 
 // ── PDF extraction ─────────────────────────────────────────────────────────────
@@ -580,37 +548,6 @@ const extractFromPdf = async (filePath: string, documentId: string): Promise<str
     return nativeText;
   }
 
-<<<<<<< HEAD
-  // Otherwise, OCR the PDF as image (scanned PDFs)
-  logger.info('PDF appears to be scanned — falling back to Tesseract OCR');
-  const { text, pdfBuffer } = await ocrWithTesseract(filePath, true);
-  
-  if (pdfBuffer) {
-    const ocrPdfFilename = `ocr_${path.basename(filePath)}`;
-    const ocrPdfPath = path.resolve(process.cwd(), env.UPLOAD_DIR, ocrPdfFilename);
-    fs.writeFileSync(ocrPdfPath, Buffer.from(pdfBuffer));
-    await DocumentModel.findByIdAndUpdate(documentId, { ocrPdfPath: ocrPdfFilename });
-  }
-
-  return text;
-};
-
-const ocrWithTesseract = async (filePath: string, generatePdf = false): Promise<{ text: string; pdfBuffer?: Uint8Array }> => {
-  const worker = await Tesseract.createWorker(env.OCR_LANGUAGES);
-  
-  try {
-    const recognizeOptions = generatePdf ? ({ pdf: true } as any) : undefined;
-    const { data } = await worker.recognize(filePath, recognizeOptions);
-    const text = data.text?.trim() || '';
-    const pdfBuffer = generatePdf ? (data as any).pdf : undefined;
-    
-    logger.info(`Tesseract OCR complete: ${text.length} characters extracted (PDF: ${!!pdfBuffer})`);
-    return { text, pdfBuffer };
-  } finally {
-    await worker.terminate();
-  }
-};
-=======
   // Step 2: scanned PDF — render each page as an image and OCR
   logger.info(`PDF has only ${wCount} words of native text — rendering pages for OCR`);
   const scannedText = await renderPdfPagesAndOcr(buffer);
@@ -821,4 +758,3 @@ export const cleanText = (text: string): string => {
 
 const wordCount = (text: string): number =>
   text.split(/\s+/).filter(Boolean).length;
->>>>>>> 8cc1307b0c4b1c4690e57af12a159aa6776fc8cd

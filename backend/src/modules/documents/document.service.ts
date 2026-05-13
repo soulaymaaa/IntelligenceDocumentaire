@@ -23,8 +23,8 @@ interface ListDocumentsParams {
   status?: DocumentStatus;
   search?: string;
   archived?: boolean;
-<<<<<<< HEAD
   folderId?: string | null;
+  dossierId?: string;
 }
 
 interface FolderLeanItem {
@@ -47,20 +47,13 @@ interface ListFoldersResult {
 }
 
 export const listDocuments = async (params: ListDocumentsParams) => {
-  const { ownerId, page = 1, limit = 20, status, search, archived, folderId } = params;
-=======
-  dossierId?: string;
-}
-
-export const listDocuments = async (params: ListDocumentsParams) => {
-  const { ownerId, page = 1, limit = 20, status, search, archived, dossierId } = params;
->>>>>>> 8cc1307b0c4b1c4690e57af12a159aa6776fc8cd
+  const { ownerId, page = 1, limit = 20, status, search, archived, folderId, dossierId } = params;
 
   const query: any = { ownerId };
   if (status) query.status = status;
   if (typeof archived === 'boolean') query.archived = archived;
   if (search) query.originalName = { $regex: search, $options: 'i' };
-<<<<<<< HEAD
+  
   if (folderId !== undefined) {
     if (folderId === null) {
       query.$or = [{ folderId: null }, { folderId: { $exists: false } }];
@@ -69,9 +62,8 @@ export const listDocuments = async (params: ListDocumentsParams) => {
       query.folderId = folderId;
     }
   }
-=======
+
   if (dossierId) query.dossierId = dossierId;
->>>>>>> 8cc1307b0c4b1c4690e57af12a159aa6776fc8cd
 
   const [docs, total] = await Promise.all([
     DocumentModel.find(query)
@@ -286,16 +278,11 @@ export const deleteDocument = async (id: string, ownerId: string): Promise<void>
   await DocumentModel.findByIdAndDelete(id);
 };
 
-<<<<<<< HEAD
 export const renameDocument = async (id: string, ownerId: string, newName: string): Promise<IDocument> => {
-=======
-export const moveDocument = async (id: string, ownerId: string, dossierId: string | null): Promise<IDocument> => {
->>>>>>> 8cc1307b0c4b1c4690e57af12a159aa6776fc8cd
   const doc = await DocumentModel.findById(id);
   if (!doc) throw new NotFoundError('Document');
   if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
 
-<<<<<<< HEAD
   doc.originalName = newName;
   doc.updatedAt = new Date();
   await doc.save();
@@ -314,7 +301,15 @@ export const moveDocumentToFolder = async (
   const folder = folderId ? await getFolderById(folderId, ownerId) : null;
   doc.folderId = folder?._id || null;
   doc.updatedAt = new Date();
-=======
+  await doc.save();
+  return doc;
+};
+
+export const moveDocument = async (id: string, ownerId: string, dossierId: string | null): Promise<IDocument> => {
+  const doc = await DocumentModel.findById(id);
+  if (!doc) throw new NotFoundError('Document');
+  if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
+
   if (dossierId) {
     (doc as any).dossierId = dossierId;
   } else {
@@ -322,7 +317,6 @@ export const moveDocumentToFolder = async (
     await DocumentModel.findByIdAndUpdate(id, { $unset: { dossierId: 1 } });
     return doc;
   }
->>>>>>> 8cc1307b0c4b1c4690e57af12a159aa6776fc8cd
   await doc.save();
   return doc;
 };
