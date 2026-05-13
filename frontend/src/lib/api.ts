@@ -258,15 +258,15 @@ export const aiApi = {
     return extractData(res).mindMap;
   },
 
-  ask: async (id: string, question: string, topK = 5): Promise<RagAnswer> => {
+  ask: async (id: string, question: string, topK = 5, responseLanguage?: 'fr' | 'en'): Promise<RagAnswer> => {
     const res = await api.post<ApiResponse<RagAnswer>>(`/ai/documents/${id}/ask`, {
-      question, topK,
+      question, topK, responseLanguage,
     });
     return extractData(res);
   },
 
-  askGlobal: async (question: string, topK = 5): Promise<RagAnswer> => {
-    const res = await api.post<ApiResponse<RagAnswer>>('/ai/ask-global', { question, topK });
+  askGlobal: async (question: string, topK = 5, responseLanguage?: 'fr' | 'en'): Promise<RagAnswer> => {
+    const res = await api.post<ApiResponse<RagAnswer>>('/ai/ask-global', { question, topK, responseLanguage });
     return extractData(res);
   },
 
@@ -308,7 +308,7 @@ export const conversationsApi = {
 
   sendMessage: async (
     id: string,
-    payload: { question: string; topK?: number; documentId?: string }
+    payload: { question: string; topK?: number; documentId?: string; responseLanguage?: 'fr' | 'en' }
   ): Promise<{ conversation: Conversation; answer: RagAnswer }> => {
     const res = await api.post<ApiResponse<{ conversation: Conversation; answer: RagAnswer }>>(
       `/conversations/${id}/messages`,

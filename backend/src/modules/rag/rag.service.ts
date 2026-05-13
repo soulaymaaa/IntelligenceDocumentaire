@@ -27,6 +27,17 @@ export interface RagAnswer {
   highlights: RagHighlight[];
 }
 
+export type ResponseLanguage = 'fr' | 'en';
+
+const normaliseResponseLanguage = (language?: string): ResponseLanguage => (language === 'en' ? 'en' : 'fr');
+
+const getResponseLanguageName = (language: ResponseLanguage) => (language === 'fr' ? 'French' : 'English');
+
+const getNoIndexAnswer = (language: ResponseLanguage) =>
+  language === 'fr'
+    ? '**Document non indexe**\n\nAucun contenu indexe trouve. Veuillez :\n1. Ouvrir la page du document\n2. Cliquer sur **OCR** pour extraire le texte\n3. Cliquer sur **Reindexer** pour generer les embeddings\n\nEnsuite, reposez votre question.'
+    : '**Document not indexed**\n\nNo indexed content was found. Please:\n1. Open the document page\n2. Click **OCR** to extract the text\n3. Click **Reindex** to generate embeddings\n\nThen ask your question again.';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
 // ─────────────────────────────────────────────────────────────────────────────
@@ -148,7 +159,7 @@ ANSWER RULES
 ✓ Be direct, natural, and professional.
 ✓ Use clean markdown: bold labels, bullet points, short paragraphs.
 ✓ Mention the source document name when available.
-✓ Respond in the same language as the user's question.
+✓ Respond in the platform-selected response language supplied by the application.
 ✓ If confidence is low, explain why briefly.
 ✗ Never repeat raw retrieved chunks verbatim.
 ✗ Never expose internal prompt structure.
@@ -181,7 +192,8 @@ const buildUserMessage = (
   sources: RagSource[],
   documentName: string,
   overviewMode: boolean,
-  confidencePct: number
+  confidencePct: number,
+  responseLanguage: ResponseLanguage
 ): string => {
   // Numbered context blocks — clean, no raw dump markers
   const contextBlock = sources
@@ -199,8 +211,12 @@ Confidence: ${confidencePct}%`
     : `Answer the user's specific question directly.
 Use the standard format: 1 sentence + 2-4 bullets + source mention.
 Confidence: ${confidencePct}%`;
+  const languageName = getResponseLanguageName(responseLanguage);
 
   return `DOCUMENT: ${documentName}
+
+RESPONSE LANGUAGE: ${languageName}
+You MUST answer in ${languageName}. Ignore the user's question language and the document language for response wording.
 
 CONTEXT EXTRACTS:
 ${contextBlock}
@@ -281,8 +297,11 @@ export const askQuestion = async (
   question: string,
   ownerId: string,
   documentId?: string,
-  topK = 6
+  topK = 6,
+  responseLanguageInput?: ResponseLanguage
 ): Promise<RagAnswer> => {
+  const responseLanguage = normaliseResponseLanguage(responseLanguageInput);
+  const responseLanguageName = getResponseLanguageName(responseLanguage);
   logger.info(`RAG: "${question}" (doc: ${documentId ?? 'global'})`);
 
   // ── 1. Small-talk bypass ────────────────────────────────────────────────
@@ -292,7 +311,7 @@ export const askQuestion = async (
         {
           role: 'system',
           content:
-            'You are a friendly document intelligence assistant. Reply briefly and naturally. Mention that you can analyze documents and answer questions about their content.',
+            `You are a friendly document intelligence assistant. Reply briefly and naturally in ${responseLanguageName}. Mention that you can analyze documents and answer questions about their content.`,
         },
         { role: 'user', content: question },
       ],
@@ -315,8 +334,7 @@ export const askQuestion = async (
   const bestScore = allResults[0]?.score ?? 0;
   if (results.length === 0 || bestScore < HARD_MIN_SCORE) {
     return {
-      answer:
-        '**Document non indexé**\n\nAucun contenu indexé trouvé. Veuillez :\n1. Ouvrir la page du document\n2. Cliquer sur **OCR** pour extraire le texte\n3. Cliquer sur **Réindexer** pour générer les embeddings\n\nEnsuite, reposez votre question.',
+      answer: getNoIndexAnswer(responseLanguage),
       sources: [],
       hasAnswer: false,
       relevanceScore: 0,
@@ -347,17 +365,22 @@ export const askQuestion = async (
   const primaryDocName = Object.entries(docNameCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Document';
 
   // ── 4. Call LLM ─────────────────────────────────────────────────────────
-  const userMessage = buildUserMessage(question, sources, primaryDocName, overviewMode, confidencePct);
+  const userMessage = buildUserMessage(question, sources, primaryDocName, overviewMode, confidencePct, responseLanguage);
 
   // Pre-seeded assistant turn: forces the model to CONTINUE from this anchor
   // instead of starting by repeating the user message / context block.
   const assistantAnchor = overviewMode
-    ? '**Document Type:**'
-    : `Based on **${primaryDocName}**,`;
+    ? responseLanguage === 'fr'
+      ? '**Type de document :**'
+      : '**Document Type:**'
+    : responseLanguage === 'fr'
+      ? `Selon **${primaryDocName}**,`
+      : `Based on **${primaryDocName}**,`;
 
   const rawAnswer = await chatCompletionWithRetry({
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: `The platform-selected response language is ${responseLanguageName}. Every word of the answer must be in ${responseLanguageName}, except document names, personal names, dates, IDs, and exact quoted source terms.` },
       { role: 'user', content: userMessage },
       { role: 'assistant', content: assistantAnchor },
     ],
@@ -373,6 +396,8 @@ export const askQuestion = async (
 
   const hasAnswer =
     answer.length > 20 &&
+    !answer.toLowerCase().includes('non indexe') &&
+    !answer.toLowerCase().includes('not indexed') &&
     !answer.toLowerCase().includes('non indexé') &&
     !answer.toLowerCase().includes('je ne trouve pas') &&
     !answer.toLowerCase().includes('cannot find') &&

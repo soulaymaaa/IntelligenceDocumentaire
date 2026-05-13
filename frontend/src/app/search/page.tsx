@@ -14,7 +14,7 @@ import { useLanguage } from '@/providers/LanguageProvider';
 import type { Conversation, SearchResult } from '@/types';
 
 export default function SearchPage() {
-  const { copy } = useLanguage();
+  const { copy, language } = useLanguage();
   const qc = useQueryClient();
   const [question, setQuestion] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,7 +47,7 @@ export default function SearchPage() {
         activeConversation ||
         (await conversationsApi.create({ title: content.slice(0, 60), scope: 'global' }));
 
-      return conversationsApi.sendMessage(conversation._id, { question: content, topK: 6 });
+      return conversationsApi.sendMessage(conversation._id, { question: content, topK: 6, responseLanguage: language });
     },
     onSuccess: ({ conversation }) => {
       setSelectedConversationId(conversation._id);

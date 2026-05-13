@@ -14,6 +14,7 @@ import { LLMError } from '../../utils/llm';
 const questionSchema = z.object({
   question: z.string().min(1).max(1000),
   topK: z.number().min(1).max(10).optional().default(5),
+  responseLanguage: z.enum(['fr', 'en']).optional().default('fr'),
 });
 
 const translationSchema = z.object({
@@ -114,9 +115,9 @@ export const askDocument = asyncHandler(
       if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
 
       const { id } = req.params;
-      const { question, topK } = parsed.data;
+      const { question, topK, responseLanguage } = parsed.data;
 
-      const result = await askQuestion(question, req.userId!, id, topK);
+      const result = await askQuestion(question, req.userId!, id, topK, responseLanguage);
 
       await logAction({
         userId: req.userId!,
@@ -168,9 +169,9 @@ export const askGlobal = asyncHandler(
       const parsed = questionSchema.safeParse(req.body);
       if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
 
-      const { question, topK } = parsed.data;
+      const { question, topK, responseLanguage } = parsed.data;
 
-      const result = await askQuestion(question, req.userId!, undefined, topK);
+      const result = await askQuestion(question, req.userId!, undefined, topK, responseLanguage);
 
       await logAction({
         userId: req.userId!,

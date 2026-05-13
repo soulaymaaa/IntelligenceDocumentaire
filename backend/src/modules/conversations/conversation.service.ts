@@ -14,6 +14,7 @@ export interface SendMessageInput {
   question: string;
   topK?: number;
   documentId?: string;
+  responseLanguage?: 'fr' | 'en';
 }
 
 export const listConversations = async (
@@ -85,7 +86,7 @@ export const sendMessage = async (
 
   conversation.messages.push(userMessage);
 
-  const answer = await askQuestion(question, ownerId, documentId, input.topK || 5);
+  const answer = await askQuestion(question, ownerId, documentId, input.topK || 5, input.responseLanguage);
 
   const assistantMessage = {
     role: 'assistant' as const,

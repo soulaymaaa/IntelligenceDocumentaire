@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
+import { jsPDF } from 'jspdf';
 import {
   ResponsiveContainer,
   LineChart,
@@ -128,7 +129,7 @@ const PdfPreview = ({ url, originalName }: { url: string; originalName: string }
 };
 
 type ScannedImagePreview = {
-  src: string;
+  pdfUrl: string;
   width: number;
   height: number;
 };
@@ -438,7 +439,175 @@ const drawPerspectiveScan = (
   return { canvas: outputCanvas, width: outputWidth, height: outputHeight };
 };
 
-const createScannedImagePreview = async (url: string): Promise<ScannedImagePreview> => {
+const smoothScores = (scores: number[], radius: number) => {
+  const smoothed = new Array<number>(scores.length);
+  const prefix = new Array<number>(scores.length + 1).fill(0);
+
+  for (let i = 0; i < scores.length; i += 1) {
+    prefix[i + 1] = prefix[i] + scores[i];
+  }
+
+  for (let i = 0; i < scores.length; i += 1) {
+    const start = Math.max(0, i - radius);
+    const end = Math.min(scores.length, i + radius + 1);
+    smoothed[i] = (prefix[end] - prefix[start]) / (end - start);
+  }
+
+  return smoothed;
+};
+
+const findPaperEdge = (scores: number[], threshold: number, fromStart: boolean) => {
+  const requiredRun = Math.max(5, Math.floor(scores.length * 0.012));
+  let run = 0;
+
+  if (fromStart) {
+    for (let i = 0; i < scores.length; i += 1) {
+      run = scores[i] >= threshold ? run + 1 : 0;
+      if (run >= requiredRun) return i - requiredRun + 1;
+    }
+    return 0;
+  }
+
+  for (let i = scores.length - 1; i >= 0; i -= 1) {
+    run = scores[i] >= threshold ? run + 1 : 0;
+    if (run >= requiredRun) return i + requiredRun - 1;
+  }
+
+  return scores.length - 1;
+};
+
+const isCleanPaperPixel = (data: Uint8ClampedArray, index: number) => {
+  const r = data[index];
+  const g = data[index + 1];
+  const b = data[index + 2];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const chroma = max - min;
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  return (luma > 154 && chroma < 86) || (luma > 214 && chroma < 126);
+};
+
+const trimScanMargins = (canvas: HTMLCanvasElement) => {
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return canvas;
+
+  const width = canvas.width;
+  const height = canvas.height;
+  const imageData = context.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const columnScores = new Array<number>(width).fill(0);
+  const rowScores = new Array<number>(height).fill(0);
+
+  for (let y = 0; y < height; y += 1) {
+    let rowHits = 0;
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      if (isCleanPaperPixel(data, index)) {
+        columnScores[x] += 1;
+        rowHits += 1;
+      }
+    }
+    rowScores[y] = rowHits / width;
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    columnScores[x] /= height;
+  }
+
+  const smoothedColumns = smoothScores(columnScores, Math.max(2, Math.floor(width * 0.008)));
+  const smoothedRows = smoothScores(rowScores, Math.max(2, Math.floor(height * 0.006)));
+  const columnThreshold = Math.max(0.48, Math.min(0.72, getPercentile(smoothedColumns, 0.84) * 0.7));
+  const rowThreshold = Math.max(0.42, Math.min(0.7, getPercentile(smoothedRows, 0.84) * 0.66));
+  let left = findPaperEdge(smoothedColumns, columnThreshold, true);
+  let right = findPaperEdge(smoothedColumns, columnThreshold, false);
+  let top = findPaperEdge(smoothedRows, rowThreshold, true);
+  let bottom = findPaperEdge(smoothedRows, rowThreshold, false);
+
+  const innerTrimX = Math.max(2, Math.round(width * 0.006));
+  const innerTrimY = Math.max(1, Math.round(height * 0.0025));
+  left = Math.min(right - 20, left + innerTrimX);
+  right = Math.max(left + 20, right - innerTrimX);
+  top = Math.min(bottom - 20, top + innerTrimY);
+  bottom = Math.max(top + 20, bottom - innerTrimY);
+
+  const trimWidth = right - left + 1;
+  const trimHeight = bottom - top + 1;
+  if (trimWidth < width * 0.55 || trimHeight < height * 0.55) return canvas;
+
+  const trimmedCanvas = document.createElement('canvas');
+  trimmedCanvas.width = trimWidth;
+  trimmedCanvas.height = trimHeight;
+  const trimmedContext = trimmedCanvas.getContext('2d');
+  if (!trimmedContext) return canvas;
+  trimmedContext.fillStyle = '#ffffff';
+  trimmedContext.fillRect(0, 0, trimWidth, trimHeight);
+  trimmedContext.drawImage(canvas, left, top, trimWidth, trimHeight, 0, 0, trimWidth, trimHeight);
+
+  return trimmedCanvas;
+};
+
+const sharpenScanImage = (imageData: ImageData, width: number, height: number, amount = 0.34) => {
+  if (width < 3 || height < 3) return;
+
+  const data = imageData.data;
+  const original = new Uint8ClampedArray(data);
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const index = (y * width + x) * 4;
+      const centerLuma = 0.2126 * original[index] + 0.7152 * original[index + 1] + 0.0722 * original[index + 2];
+      const localAmount = centerLuma > 226 ? amount * 0.18 : centerLuma < 80 ? amount * 0.72 : amount;
+
+      for (let channel = 0; channel < 3; channel += 1) {
+        const center = original[index + channel];
+        const left = original[index - 4 + channel];
+        const right = original[index + 4 + channel];
+        const top = original[index - width * 4 + channel];
+        const bottom = original[index + width * 4 + channel];
+        data[index + channel] = clampChannel(center * (1 + 4 * localAmount) - (left + right + top + bottom) * localAmount);
+      }
+    }
+  }
+};
+
+const createScanPdfUrl = (canvas: HTMLCanvasElement, originalName: string) => {
+  const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+  const pdf = new jsPDF({
+    orientation,
+    unit: 'pt',
+    format: 'a4',
+    compress: true,
+  });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 18;
+  const maxWidth = pageWidth - margin * 2;
+  const maxHeight = pageHeight - margin * 2;
+  const imageRatio = canvas.width / canvas.height;
+  let imageWidth = maxWidth;
+  let imageHeight = imageWidth / imageRatio;
+
+  if (imageHeight > maxHeight) {
+    imageHeight = maxHeight;
+    imageWidth = imageHeight * imageRatio;
+  }
+
+  const x = (pageWidth - imageWidth) / 2;
+  const y = (pageHeight - imageHeight) / 2;
+  pdf.setProperties({
+    title: originalName,
+    subject: 'Scanned document preview',
+    creator: 'Intelligence Documentaire',
+  });
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, imageWidth, imageHeight, undefined, 'NONE');
+
+  return URL.createObjectURL(pdf.output('blob'));
+};
+
+const createScannedImagePreview = async (url: string, originalName: string): Promise<ScannedImagePreview> => {
   const image = await loadPreviewImage(url);
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
@@ -504,9 +673,13 @@ const createScannedImagePreview = async (url: string): Promise<ScannedImagePrevi
     );
   }
 
-  const finalWidth = outputCanvas.width;
-  const finalHeight = outputCanvas.height;
-  const imageData = outputContext.getImageData(0, 0, finalWidth, finalHeight);
+  const trimmedCanvas = trimScanMargins(outputCanvas);
+  const finalContext = trimmedCanvas.getContext('2d', { willReadFrequently: true });
+  if (!finalContext) throw new Error('Canvas is not available');
+
+  const finalWidth = trimmedCanvas.width;
+  const finalHeight = trimmedCanvas.height;
+  const imageData = finalContext.getImageData(0, 0, finalWidth, finalHeight);
   const pixels = imageData.data;
   const lumaSamples: number[] = [];
   const sampleStep = Math.max(4, Math.floor(Math.max(finalWidth, finalHeight) / 520));
@@ -518,9 +691,9 @@ const createScannedImagePreview = async (url: string): Promise<ScannedImagePrevi
     }
   }
 
-  const blackPoint = getPercentile(lumaSamples, 0.04);
-  const whitePoint = getPercentile(lumaSamples, 0.94);
-  const span = Math.max(48, whitePoint - blackPoint);
+  const blackPoint = Math.max(0, getPercentile(lumaSamples, 0.03) - 4);
+  const whitePoint = Math.min(255, getPercentile(lumaSamples, 0.92) + 18);
+  const span = Math.max(64, whitePoint - blackPoint);
 
   for (let index = 0; index < pixels.length; index += 4) {
     const r = pixels[index];
@@ -528,20 +701,23 @@ const createScannedImagePreview = async (url: string): Promise<ScannedImagePrevi
     const b = pixels[index + 2];
     const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     const normalized = Math.max(0, Math.min(1, (luma - blackPoint) / span));
-    const contrasted = clampChannel((normalized * 255 - 128) * 1.18 + 128);
-    const paperLift = contrasted > 202 ? 24 : contrasted > 168 ? 10 : 0;
-    const textDrop = contrasted < 88 ? -18 : 0;
+    const lightened = Math.pow(normalized, 0.72);
+    const contrasted = clampChannel((lightened * 255 - 128) * 1.08 + 128);
+    const paperLift = contrasted > 210 ? 34 : contrasted > 178 ? 18 : contrasted > 145 ? 8 : 0;
+    const textDrop = contrasted < 78 ? -10 : 0;
     const scanTone = clampChannel(contrasted + paperLift + textDrop);
 
-    pixels[index] = clampChannel(r * 0.34 + scanTone * 0.66);
-    pixels[index + 1] = clampChannel(g * 0.34 + scanTone * 0.66);
-    pixels[index + 2] = clampChannel(b * 0.34 + scanTone * 0.66);
+    pixels[index] = clampChannel(r * 0.1 + scanTone * 0.9);
+    pixels[index + 1] = clampChannel(g * 0.1 + scanTone * 0.9);
+    pixels[index + 2] = clampChannel(b * 0.1 + scanTone * 0.9);
   }
 
-  outputContext.putImageData(imageData, 0, 0);
+  sharpenScanImage(imageData, finalWidth, finalHeight);
+  finalContext.putImageData(imageData, 0, 0);
+  const pdfUrl = createScanPdfUrl(trimmedCanvas, originalName);
 
   return {
-    src: outputCanvas.toDataURL('image/jpeg', 0.92),
+    pdfUrl,
     width: finalWidth,
     height: finalHeight,
   };
@@ -550,29 +726,35 @@ const createScannedImagePreview = async (url: string): Promise<ScannedImagePrevi
 const ImagePreview = ({ url, originalName }: { url: string; originalName: string }) => {
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [scanPreview, setScanPreview] = useState<ScannedImagePreview | null>(null);
-  const [displaySrc, setDisplaySrc] = useState<string | null>(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    let objectUrl: string | null = null;
     setStatus('loading');
-    setDisplaySrc(null);
+    setPdfPreviewUrl(null);
     setScanPreview(null);
 
-    createScannedImagePreview(url)
+    createScannedImagePreview(url, originalName)
       .then((preview) => {
-        if (cancelled) return;
+        objectUrl = preview.pdfUrl;
+        if (cancelled) {
+          URL.revokeObjectURL(preview.pdfUrl);
+          return;
+        }
         setScanPreview(preview);
-        setDisplaySrc(preview.src);
+        setPdfPreviewUrl(preview.pdfUrl);
       })
       .catch(() => {
         if (cancelled) return;
-        setDisplaySrc(url);
+        setStatus('error');
       });
 
     return () => {
       cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url]);
+  }, [url, originalName]);
 
   return (
     <div className="relative h-[680px] w-full overflow-hidden rounded-2xl border border-surface-200 bg-slate-200 dark:border-slate-700 dark:bg-slate-950">
@@ -594,24 +776,16 @@ const ImagePreview = ({ url, originalName }: { url: string; originalName: string
         </div>
       )}
 
-      <div className="h-full overflow-auto px-3 py-5 sm:px-5">
-        <div className="flex min-h-full items-start justify-center">
-          {displaySrc && status !== 'error' && (
-            <div
-              className="w-full max-w-[560px] rounded-[4px] bg-white p-1 shadow-[0_26px_70px_rgba(15,23,42,0.28)] ring-1 ring-slate-300/80 dark:ring-slate-700"
-              style={scanPreview ? { aspectRatio: `${scanPreview.width} / ${scanPreview.height}` } : undefined}
-            >
-              <img
-                src={displaySrc}
-                alt={originalName}
-                className="block h-auto w-full rounded-[2px] bg-white object-contain"
-                onLoad={() => setStatus('ok')}
-                onError={() => setStatus('error')}
-              />
-            </div>
-          )}
-        </div>
-      </div>
+      {pdfPreviewUrl && status !== 'error' && (
+        <iframe
+          title={`Apercu PDF - ${originalName}`}
+          src={`${pdfPreviewUrl}#toolbar=1&navpanes=0&view=FitH`}
+          className="h-full w-full bg-white"
+          onLoad={() => setStatus('ok')}
+          onError={() => setStatus('error')}
+          style={scanPreview ? { colorScheme: 'light' } : undefined}
+        />
+      )}
     </div>
   );
 };
@@ -1561,7 +1735,7 @@ const SpreadsheetCharts = ({ doc }: { doc: Document }) => {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DocumentDetailPage() {
-  const { copy } = useLanguage();
+  const { copy, language } = useLanguage();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
@@ -1678,7 +1852,7 @@ export default function DocumentDetailPage() {
           scope: 'document',
           documentId: id,
         }));
-      return conversationsApi.sendMessage(conversation._id, { question: content, documentId: id });
+      return conversationsApi.sendMessage(conversation._id, { question: content, documentId: id, responseLanguage: language });
     },
     onSuccess: () => {
       setQuestion('');

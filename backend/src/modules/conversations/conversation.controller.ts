@@ -15,6 +15,7 @@ const sendMessageSchema = z.object({
   question: z.string().trim().min(1).max(1000),
   topK: z.number().min(1).max(10).optional().default(5),
   documentId: z.string().optional(),
+  responseLanguage: z.enum(['fr', 'en']).optional().default('fr'),
 });
 
 export const list = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {

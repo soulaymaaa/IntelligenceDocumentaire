@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Input';
 import { cn, formatDate, highlightText } from '@/lib/utils';
+import { useLanguage } from '@/providers/LanguageProvider';
 import type { Conversation, ConversationMessage } from '@/types';
 
 interface ConversationPanelProps {
@@ -38,8 +39,15 @@ const confidenceConfig = {
 // ── Single message bubble ─────────────────────────────────────────────────────
 
 const MessageBubble = ({ message }: { message: ConversationMessage }) => {
+  const { language } = useLanguage();
   const isUser = message.role === 'user';
-  const conf = !isUser && message.confidence ? confidenceConfig[message.confidence] : null;
+  const confidenceLabels =
+    language === 'fr'
+      ? { high: 'Haute', medium: 'Moyenne', low: 'Faible' }
+      : { high: 'High', medium: 'Medium', low: 'Low' };
+  const conf = !isUser && message.confidence
+    ? { ...confidenceConfig[message.confidence], label: confidenceLabels[message.confidence] }
+    : null;
 
   return (
     <div className={cn('flex gap-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
@@ -74,7 +82,7 @@ const MessageBubble = ({ message }: { message: ConversationMessage }) => {
             {message.relevanceScore !== undefined && message.relevanceScore > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full border border-brand-300/40 bg-brand-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:bg-brand-950/30 dark:text-brand-300">
                 <Zap className="w-2.5 h-2.5" />
-                {message.relevanceScore}% pertinence
+                {message.relevanceScore}% {language === 'fr' ? 'pertinence' : 'relevance'}
               </span>
             )}
             {conf && (
@@ -85,7 +93,7 @@ const MessageBubble = ({ message }: { message: ConversationMessage }) => {
                 )}
               >
                 <ShieldCheck className="w-2.5 h-2.5" />
-                Confiance {conf.label}
+                {language === 'fr' ? 'Confiance' : 'Confidence'} {conf.label}
               </span>
             )}
             <span className="text-[10px] text-slate-400">{formatDate(message.createdAt)}</span>
@@ -185,6 +193,7 @@ export const ConversationPanel = ({
   emptyTitle,
   emptyDescription,
 }: ConversationPanelProps) => {
+  const { language } = useLanguage();
   const messages = conversation?.messages || [];
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -206,13 +215,15 @@ export const ConversationPanel = ({
               {conversation?.title || emptyTitle || 'Assistant IA'}
             </p>
             <p className="mt-0.5 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
-              RAG · Sources tracées
+              {language === 'fr' ? 'RAG · Sources tracees' : 'RAG · Traced sources'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[10px] font-semibold text-slate-400">En ligne</span>
+          <span className="text-[10px] font-semibold text-slate-400">
+            {language === 'fr' ? 'En ligne' : 'Online'}
+          </span>
         </div>
       </div>
 
@@ -269,14 +280,16 @@ export const ConversationPanel = ({
             isLoading={isSending}
             disabled={!question.trim() || isSending}
             className="h-10 w-10 shrink-0 rounded-xl p-0 flex items-center justify-center"
-            title="Envoyer (Entrée)"
+            title={language === 'fr' ? 'Envoyer (Entree)' : 'Send (Enter)'}
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
         <p className="mt-2 text-[10px] font-medium text-slate-400 flex items-center gap-1.5">
           <ShieldCheck className="w-3 h-3" />
-          Entrée pour envoyer · Maj+Entrée pour nouvelle ligne · Sources et score inclus
+          {language === 'fr'
+            ? 'Entree pour envoyer · Maj+Entree pour nouvelle ligne · Sources et score inclus'
+            : 'Enter to send · Shift+Enter for a new line · Sources and score included'}
         </p>
       </div>
     </div>
