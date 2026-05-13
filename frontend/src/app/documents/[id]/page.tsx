@@ -127,19 +127,463 @@ const PdfPreview = ({ url, originalName }: { url: string; originalName: string }
   );
 };
 
+type ScannedImagePreview = {
+  src: string;
+  width: number;
+  height: number;
+};
+
+type ScanPoint = {
+  x: number;
+  y: number;
+};
+
+type PaperDetection = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  corners: [ScanPoint, ScanPoint, ScanPoint, ScanPoint];
+};
+
+const clampChannel = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+
+const clampPoint = (point: ScanPoint, width: number, height: number): ScanPoint => ({
+  x: Math.max(0, Math.min(width - 1, point.x)),
+  y: Math.max(0, Math.min(height - 1, point.y)),
+});
+
+const distanceBetween = (a: ScanPoint, b: ScanPoint) => Math.hypot(a.x - b.x, a.y - b.y);
+
+const quadArea = (points: [ScanPoint, ScanPoint, ScanPoint, ScanPoint]) => {
+  let area = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const current = points[i];
+    const next = points[(i + 1) % points.length];
+    area += current.x * next.y - next.x * current.y;
+  }
+  return Math.abs(area) / 2;
+};
+
+const loadPreviewImage = (url: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.decoding = 'async';
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Image preview failed to load'));
+    image.src = url;
+  });
+
+const getPercentile = (values: number[], percentile: number) => {
+  if (!values.length) return percentile > 0.5 ? 255 : 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.max(0, Math.min(sorted.length - 1, Math.round((sorted.length - 1) * percentile)));
+  return sorted[index];
+};
+
+const isPaperLikePixel = (data: Uint8ClampedArray, index: number) => {
+  const r = data[index];
+  const g = data[index + 1];
+  const b = data[index + 2];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const chroma = max - min;
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  return (luma > 142 && chroma < 78) || (luma > 184 && chroma < 118);
+};
+
+const detectPaperBounds = (data: Uint8ClampedArray, width: number, height: number): PaperDetection | null => {
+  const totalPixels = width * height;
+  const mask = new Uint8Array(totalPixels);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      mask[y * width + x] = isPaperLikePixel(data, index) ? 1 : 0;
+    }
+  }
+
+  const visited = new Uint8Array(totalPixels);
+  const stack = new Int32Array(totalPixels);
+  const minComponentPixels = Math.max(120, Math.floor(totalPixels * 0.018));
+  let bestDetection: PaperDetection | null = null;
+  let bestScore = 0;
+
+  for (let start = 0; start < totalPixels; start += 1) {
+    if (!mask[start] || visited[start]) continue;
+
+    let stackLength = 0;
+    let count = 0;
+    let minX = width;
+    let minY = height;
+    let maxX = 0;
+    let maxY = 0;
+    let minSum = Number.POSITIVE_INFINITY;
+    let maxSum = Number.NEGATIVE_INFINITY;
+    let minDiff = Number.POSITIVE_INFINITY;
+    let maxDiff = Number.NEGATIVE_INFINITY;
+    let topLeft: ScanPoint = { x: 0, y: 0 };
+    let topRight: ScanPoint = { x: 0, y: 0 };
+    let bottomRight: ScanPoint = { x: 0, y: 0 };
+    let bottomLeft: ScanPoint = { x: 0, y: 0 };
+
+    visited[start] = 1;
+    stack[stackLength] = start;
+    stackLength += 1;
+
+    while (stackLength > 0) {
+      stackLength -= 1;
+      const position = stack[stackLength];
+      const x = position % width;
+      const y = Math.floor(position / width);
+      count += 1;
+
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+
+      const sum = x + y;
+      const diff = x - y;
+      if (sum < minSum) {
+        minSum = sum;
+        topLeft = { x, y };
+      }
+      if (diff > maxDiff) {
+        maxDiff = diff;
+        topRight = { x, y };
+      }
+      if (sum > maxSum) {
+        maxSum = sum;
+        bottomRight = { x, y };
+      }
+      if (diff < minDiff) {
+        minDiff = diff;
+        bottomLeft = { x, y };
+      }
+
+      const left = position - 1;
+      const right = position + 1;
+      const up = position - width;
+      const down = position + width;
+
+      if (x > 0 && mask[left] && !visited[left]) {
+        visited[left] = 1;
+        stack[stackLength] = left;
+        stackLength += 1;
+      }
+      if (x < width - 1 && mask[right] && !visited[right]) {
+        visited[right] = 1;
+        stack[stackLength] = right;
+        stackLength += 1;
+      }
+      if (y > 0 && mask[up] && !visited[up]) {
+        visited[up] = 1;
+        stack[stackLength] = up;
+        stackLength += 1;
+      }
+      if (y < height - 1 && mask[down] && !visited[down]) {
+        visited[down] = 1;
+        stack[stackLength] = down;
+        stackLength += 1;
+      }
+    }
+
+    if (count < minComponentPixels) continue;
+
+    const boxWidth = maxX - minX + 1;
+    const boxHeight = maxY - minY + 1;
+    if (boxWidth < width * 0.22 || boxHeight < height * 0.22) continue;
+
+    const fallbackCorners: [ScanPoint, ScanPoint, ScanPoint, ScanPoint] = [
+      { x: minX, y: minY },
+      { x: maxX, y: minY },
+      { x: maxX, y: maxY },
+      { x: minX, y: maxY },
+    ];
+    const detectedCorners: [ScanPoint, ScanPoint, ScanPoint, ScanPoint] = [
+      topLeft,
+      topRight,
+      bottomRight,
+      bottomLeft,
+    ];
+    const detectedArea = quadArea(detectedCorners);
+    const boxArea = boxWidth * boxHeight;
+    const corners = detectedArea > boxArea * 0.34 ? detectedCorners : fallbackCorners;
+    const aspect = boxHeight / Math.max(1, boxWidth);
+    const aspectScore = aspect > 0.72 && aspect < 2.4 ? 1 : 0.48;
+    const edgeTouches =
+      (minX <= 1 ? 1 : 0) + (minY <= 1 ? 1 : 0) + (maxX >= width - 2 ? 1 : 0) + (maxY >= height - 2 ? 1 : 0);
+    const edgeScore = edgeTouches >= 3 ? 0.35 : 1;
+    const fillRatio = count / boxArea;
+    const score = count * Math.min(1, fillRatio * 2.5) * aspectScore * edgeScore;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestDetection = {
+        x: minX,
+        y: minY,
+        width: boxWidth,
+        height: boxHeight,
+        corners,
+      };
+    }
+  }
+
+  if (!bestDetection) return null;
+
+  const padX = Math.round(bestDetection.width * 0.018);
+  const padY = Math.round(bestDetection.height * 0.018);
+  const x = Math.max(0, bestDetection.x - padX);
+  const y = Math.max(0, bestDetection.y - padY);
+  const paddedRight = Math.min(width - 1, bestDetection.x + bestDetection.width + padX);
+  const paddedBottom = Math.min(height - 1, bestDetection.y + bestDetection.height + padY);
+
+  return {
+    x,
+    y,
+    width: Math.max(1, paddedRight - x),
+    height: Math.max(1, paddedBottom - y),
+    corners: bestDetection.corners,
+  };
+};
+
+const expandScanQuad = (
+  points: [ScanPoint, ScanPoint, ScanPoint, ScanPoint],
+  width: number,
+  height: number,
+  amount = 0.02
+): [ScanPoint, ScanPoint, ScanPoint, ScanPoint] => {
+  const center = points.reduce(
+    (acc, point) => ({ x: acc.x + point.x / points.length, y: acc.y + point.y / points.length }),
+    { x: 0, y: 0 }
+  );
+
+  return points.map((point) =>
+    clampPoint(
+      {
+        x: center.x + (point.x - center.x) * (1 + amount),
+        y: center.y + (point.y - center.y) * (1 + amount),
+      },
+      width,
+      height
+    )
+  ) as [ScanPoint, ScanPoint, ScanPoint, ScanPoint];
+};
+
+const drawPerspectiveScan = (
+  image: HTMLImageElement,
+  sourceWidth: number,
+  sourceHeight: number,
+  corners: [ScanPoint, ScanPoint, ScanPoint, ScanPoint]
+) => {
+  const [topLeft, topRight, bottomRight, bottomLeft] = corners;
+  const rawWidth = Math.max(distanceBetween(topLeft, topRight), distanceBetween(bottomLeft, bottomRight));
+  const rawHeight = Math.max(distanceBetween(topLeft, bottomLeft), distanceBetween(topRight, bottomRight));
+  const outputScale = Math.min(1, 1900 / Math.max(rawWidth, rawHeight));
+  const outputWidth = Math.max(1, Math.round(rawWidth * outputScale));
+  const outputHeight = Math.max(1, Math.round(rawHeight * outputScale));
+
+  const sourceCanvas = document.createElement('canvas');
+  sourceCanvas.width = sourceWidth;
+  sourceCanvas.height = sourceHeight;
+  const sourceContext = sourceCanvas.getContext('2d', { willReadFrequently: true });
+  if (!sourceContext) throw new Error('Canvas is not available');
+  sourceContext.drawImage(image, 0, 0, sourceWidth, sourceHeight);
+  const sourcePixels = sourceContext.getImageData(0, 0, sourceWidth, sourceHeight).data;
+
+  const outputCanvas = document.createElement('canvas');
+  outputCanvas.width = outputWidth;
+  outputCanvas.height = outputHeight;
+  const outputContext = outputCanvas.getContext('2d', { willReadFrequently: true });
+  if (!outputContext) throw new Error('Canvas is not available');
+  const outputData = outputContext.createImageData(outputWidth, outputHeight);
+  const outputPixels = outputData.data;
+
+  for (let y = 0; y < outputHeight; y += 1) {
+    const v = outputHeight <= 1 ? 0 : y / (outputHeight - 1);
+    const invV = 1 - v;
+
+    for (let x = 0; x < outputWidth; x += 1) {
+      const u = outputWidth <= 1 ? 0 : x / (outputWidth - 1);
+      const invU = 1 - u;
+      const sourceX =
+        topLeft.x * invU * invV + topRight.x * u * invV + bottomRight.x * u * v + bottomLeft.x * invU * v;
+      const sourceY =
+        topLeft.y * invU * invV + topRight.y * u * invV + bottomRight.y * u * v + bottomLeft.y * invU * v;
+      const x0 = Math.max(0, Math.min(sourceWidth - 1, Math.floor(sourceX)));
+      const y0 = Math.max(0, Math.min(sourceHeight - 1, Math.floor(sourceY)));
+      const x1 = Math.min(sourceWidth - 1, x0 + 1);
+      const y1 = Math.min(sourceHeight - 1, y0 + 1);
+      const wx = sourceX - x0;
+      const wy = sourceY - y0;
+      const sourceIndex00 = (y0 * sourceWidth + x0) * 4;
+      const sourceIndex10 = (y0 * sourceWidth + x1) * 4;
+      const sourceIndex01 = (y1 * sourceWidth + x0) * 4;
+      const sourceIndex11 = (y1 * sourceWidth + x1) * 4;
+      const targetIndex = (y * outputWidth + x) * 4;
+
+      for (let channel = 0; channel < 3; channel += 1) {
+        const top = sourcePixels[sourceIndex00 + channel] * (1 - wx) + sourcePixels[sourceIndex10 + channel] * wx;
+        const bottom = sourcePixels[sourceIndex01 + channel] * (1 - wx) + sourcePixels[sourceIndex11 + channel] * wx;
+        outputPixels[targetIndex + channel] = top * (1 - wy) + bottom * wy;
+      }
+      outputPixels[targetIndex + 3] = 255;
+    }
+  }
+
+  outputContext.putImageData(outputData, 0, 0);
+  return { canvas: outputCanvas, width: outputWidth, height: outputHeight };
+};
+
+const createScannedImagePreview = async (url: string): Promise<ScannedImagePreview> => {
+  const image = await loadPreviewImage(url);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+
+  const detectionScale = Math.min(1, 950 / Math.max(sourceWidth, sourceHeight));
+  const detectionWidth = Math.max(1, Math.round(sourceWidth * detectionScale));
+  const detectionHeight = Math.max(1, Math.round(sourceHeight * detectionScale));
+  const detectionCanvas = document.createElement('canvas');
+  detectionCanvas.width = detectionWidth;
+  detectionCanvas.height = detectionHeight;
+  const detectionContext = detectionCanvas.getContext('2d', { willReadFrequently: true });
+  if (!detectionContext) throw new Error('Canvas is not available');
+
+  detectionContext.drawImage(image, 0, 0, detectionWidth, detectionHeight);
+  const detectionData = detectionContext.getImageData(0, 0, detectionWidth, detectionHeight);
+  const detectedBounds = detectPaperBounds(detectionData.data, detectionWidth, detectionHeight);
+  const detectedCorners = detectedBounds
+    ? expandScanQuad(
+        detectedBounds.corners.map((point) => ({
+          x: point.x / detectionScale,
+          y: point.y / detectionScale,
+        })) as [ScanPoint, ScanPoint, ScanPoint, ScanPoint],
+        sourceWidth,
+        sourceHeight
+      )
+    : null;
+  const sourceBounds = detectedBounds
+    ? {
+        x: Math.round(detectedBounds.x / detectionScale),
+        y: Math.round(detectedBounds.y / detectionScale),
+        width: Math.round(detectedBounds.width / detectionScale),
+        height: Math.round(detectedBounds.height / detectionScale),
+      }
+    : { x: 0, y: 0, width: sourceWidth, height: sourceHeight };
+
+  const outputScale = Math.min(1, 1800 / Math.max(sourceBounds.width, sourceBounds.height));
+  const outputWidth = Math.max(1, Math.round(sourceBounds.width * outputScale));
+  const outputHeight = Math.max(1, Math.round(sourceBounds.height * outputScale));
+  const outputCanvas = document.createElement('canvas');
+  outputCanvas.width = outputWidth;
+  outputCanvas.height = outputHeight;
+  const outputContext = outputCanvas.getContext('2d', { willReadFrequently: true });
+  if (!outputContext) throw new Error('Canvas is not available');
+
+  if (detectedCorners) {
+    const perspectiveScan = drawPerspectiveScan(image, sourceWidth, sourceHeight, detectedCorners);
+    outputCanvas.width = perspectiveScan.width;
+    outputCanvas.height = perspectiveScan.height;
+    outputContext.drawImage(perspectiveScan.canvas, 0, 0);
+  } else {
+    outputContext.fillStyle = '#ffffff';
+    outputContext.fillRect(0, 0, outputWidth, outputHeight);
+    outputContext.drawImage(
+      image,
+      sourceBounds.x,
+      sourceBounds.y,
+      sourceBounds.width,
+      sourceBounds.height,
+      0,
+      0,
+      outputWidth,
+      outputHeight
+    );
+  }
+
+  const finalWidth = outputCanvas.width;
+  const finalHeight = outputCanvas.height;
+  const imageData = outputContext.getImageData(0, 0, finalWidth, finalHeight);
+  const pixels = imageData.data;
+  const lumaSamples: number[] = [];
+  const sampleStep = Math.max(4, Math.floor(Math.max(finalWidth, finalHeight) / 520));
+
+  for (let y = 0; y < finalHeight; y += sampleStep) {
+    for (let x = 0; x < finalWidth; x += sampleStep) {
+      const index = (y * finalWidth + x) * 4;
+      lumaSamples.push(0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2]);
+    }
+  }
+
+  const blackPoint = getPercentile(lumaSamples, 0.04);
+  const whitePoint = getPercentile(lumaSamples, 0.94);
+  const span = Math.max(48, whitePoint - blackPoint);
+
+  for (let index = 0; index < pixels.length; index += 4) {
+    const r = pixels[index];
+    const g = pixels[index + 1];
+    const b = pixels[index + 2];
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const normalized = Math.max(0, Math.min(1, (luma - blackPoint) / span));
+    const contrasted = clampChannel((normalized * 255 - 128) * 1.18 + 128);
+    const paperLift = contrasted > 202 ? 24 : contrasted > 168 ? 10 : 0;
+    const textDrop = contrasted < 88 ? -18 : 0;
+    const scanTone = clampChannel(contrasted + paperLift + textDrop);
+
+    pixels[index] = clampChannel(r * 0.34 + scanTone * 0.66);
+    pixels[index + 1] = clampChannel(g * 0.34 + scanTone * 0.66);
+    pixels[index + 2] = clampChannel(b * 0.34 + scanTone * 0.66);
+  }
+
+  outputContext.putImageData(imageData, 0, 0);
+
+  return {
+    src: outputCanvas.toDataURL('image/jpeg', 0.92),
+    width: finalWidth,
+    height: finalHeight,
+  };
+};
+
 const ImagePreview = ({ url, originalName }: { url: string; originalName: string }) => {
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [scanPreview, setScanPreview] = useState<ScannedImagePreview | null>(null);
+  const [displaySrc, setDisplaySrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus('loading');
+    setDisplaySrc(null);
+    setScanPreview(null);
+
+    createScannedImagePreview(url)
+      .then((preview) => {
+        if (cancelled) return;
+        setScanPreview(preview);
+        setDisplaySrc(preview.src);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDisplaySrc(url);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
 
   return (
-    <div className="relative h-[680px] w-full overflow-hidden rounded-2xl border border-surface-200 bg-slate-50">
+    <div className="relative h-[680px] w-full overflow-hidden rounded-2xl border border-surface-200 bg-slate-200 dark:border-slate-700 dark:bg-slate-950">
       {status === 'loading' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-50 z-10">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-100/95 dark:bg-slate-950/95">
           <Spinner size="lg" />
-          <p className="text-sm font-medium text-slate-500">Chargement de l’image…</p>
+          <p className="text-sm font-medium text-slate-500">Preparation du scan...</p>
         </div>
       )}
       {status === 'error' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-50 z-10 px-8 text-center">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-slate-50 px-8 text-center dark:bg-slate-950">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-500">
             <XCircle className="w-8 h-8" />
           </div>
@@ -150,14 +594,24 @@ const ImagePreview = ({ url, originalName }: { url: string; originalName: string
         </div>
       )}
 
-      <img
-        src={url}
-        alt={originalName}
-        className="h-full w-full object-contain bg-white"
-        onLoad={() => setStatus('ok')}
-        onError={() => setStatus('error')}
-        style={{ display: status === 'error' ? 'none' : 'block' }}
-      />
+      <div className="h-full overflow-auto px-3 py-5 sm:px-5">
+        <div className="flex min-h-full items-start justify-center">
+          {displaySrc && status !== 'error' && (
+            <div
+              className="w-full max-w-[560px] rounded-[4px] bg-white p-1 shadow-[0_26px_70px_rgba(15,23,42,0.28)] ring-1 ring-slate-300/80 dark:ring-slate-700"
+              style={scanPreview ? { aspectRatio: `${scanPreview.width} / ${scanPreview.height}` } : undefined}
+            >
+              <img
+                src={displaySrc}
+                alt={originalName}
+                className="block h-auto w-full rounded-[2px] bg-white object-contain"
+                onLoad={() => setStatus('ok')}
+                onError={() => setStatus('error')}
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
