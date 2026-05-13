@@ -63,7 +63,10 @@ export const listDocuments = async (params: ListDocumentsParams) => {
     }
   }
 
-  if (dossierId) query.dossierId = dossierId;
+  if (dossierId) {
+    query.dossierId = dossierId;
+  }
+
 
   const [docs, total] = await Promise.all([
     DocumentModel.find(query)
@@ -305,21 +308,6 @@ export const moveDocumentToFolder = async (
   return doc;
 };
 
-export const moveDocument = async (id: string, ownerId: string, dossierId: string | null): Promise<IDocument> => {
-  const doc = await DocumentModel.findById(id);
-  if (!doc) throw new NotFoundError('Document');
-  if (doc.ownerId.toString() !== ownerId) throw new ForbiddenError();
-
-  if (dossierId) {
-    (doc as any).dossierId = dossierId;
-  } else {
-    (doc as any).dossierId = undefined;
-    await DocumentModel.findByIdAndUpdate(id, { $unset: { dossierId: 1 } });
-    return doc;
-  }
-  await doc.save();
-  return doc;
-};
 
 export const getDashboardStats = async (ownerId: string) => {
   const [total, indexed, pending, errors, archived, recent] = await Promise.all([

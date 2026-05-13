@@ -9,6 +9,8 @@ const searchSchema = z.object({
   query: z.string().min(1).max(500),
   topK: z.number().min(1).max(20).optional().default(5),
   documentId: z.string().optional(),
+  folderId: z.string().optional(),
+  dossierId: z.string().optional(),
 });
 
 export const semanticSearchHandler = asyncHandler(
@@ -16,10 +18,10 @@ export const semanticSearchHandler = asyncHandler(
     const parsed = searchSchema.safeParse(req.body);
     if (!parsed.success) throw new ValidationError(parsed.error.errors[0].message);
 
-    const { query, topK, documentId } = parsed.data;
+    const { query, topK, documentId, folderId, dossierId } = parsed.data;
 
     const queryEmbedding = await generateEmbedding(query);
-    const results = await semanticSearch(queryEmbedding, req.userId!, topK, documentId);
+    const results = await semanticSearch(queryEmbedding, req.userId!, topK, documentId, folderId, dossierId);
 
     const formatted = results.map(({ chunk, score }) => ({
       chunkId: chunk._id,

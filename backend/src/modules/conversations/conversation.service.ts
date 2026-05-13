@@ -3,29 +3,38 @@ import { ConversationModel, type ConversationScope, type IConversation } from '.
 import { NotFoundError, ValidationError } from '../../utils/errors';
 import { askQuestion } from '../rag/rag.service';
 import { DocumentModel } from '../documents/document.model';
+import { DossierModel } from '../dossiers/dossier.model';
 
 export interface CreateConversationInput {
   title?: string;
   scope?: ConversationScope;
   documentId?: string;
+  folderId?: string;
+  dossierId?: string;
 }
 
 export interface SendMessageInput {
   question: string;
   topK?: number;
   documentId?: string;
+  folderId?: string;
+  dossierId?: string;
   responseLanguage?: 'fr' | 'en';
 }
 
 export const listConversations = async (
   ownerId: string,
   scope?: ConversationScope,
-  documentId?: string
+  documentId?: string,
+  folderId?: string,
+  dossierId?: string
 ): Promise<IConversation[]> => {
   const filter: Record<string, unknown> = { ownerId };
 
   if (scope) filter.scope = scope;
   if (documentId) filter.documentId = documentId;
+  if (folderId) filter.folderId = folderId;
+  if (dossierId) filter.dossierId = dossierId;
 
   return ConversationModel.find(filter).sort({ lastMessageAt: -1, createdAt: -1 }).lean().exec() as unknown as Promise<IConversation[]>;
 };
@@ -38,10 +47,18 @@ export const getConversation = async (conversationId: string, ownerId: string): 
 
 export const createConversation = async (ownerId: string, input: CreateConversationInput): Promise<IConversation> => {
   const scope = input.scope || 'global';
-  const title = input.title?.trim() || (scope === 'document' ? 'Document conversation' : 'Global conversation');
+  const title = input.title?.trim() || (scope === 'document' ? 'Document conversation' : scope === 'folder' ? 'Folder conversation' : scope === 'dossier' ? 'Dossier conversation' : 'Global conversation');
 
   if (scope === 'document' && !input.documentId) {
     throw new ValidationError('documentId is required for document conversations');
+  }
+
+  if (scope === 'folder' && !input.folderId) {
+    throw new ValidationError('folderId is required for folder conversations');
+  }
+
+  if (scope === 'dossier' && !input.dossierId) {
+    throw new ValidationError('dossierId is required for dossier conversations');
   }
 
   if (input.documentId) {
@@ -49,11 +66,18 @@ export const createConversation = async (ownerId: string, input: CreateConversat
     if (!document) throw new NotFoundError('Document');
   }
 
+  if (input.dossierId) {
+    const dossier = await DossierModel.findOne({ _id: input.dossierId, ownerId }).lean().exec();
+    if (!dossier) throw new NotFoundError('Dossier');
+  }
+
   const conversation = await ConversationModel.create({
     ownerId,
     title,
     scope,
     documentId: input.documentId ? new Types.ObjectId(input.documentId) : undefined,
+    folderId: input.folderId ? new Types.ObjectId(input.folderId) : undefined,
+    dossierId: input.dossierId ? new Types.ObjectId(input.dossierId) : undefined,
     messages: [],
     lastMessageAt: new Date(),
   });
@@ -70,12 +94,22 @@ export const sendMessage = async (
   if (!conversation) throw new NotFoundError('Conversation');
 
   const documentId = input.documentId || conversation.documentId?.toString();
+  const folderId = input.folderId || conversation.folderId?.toString();
+  const dossierId = input.dossierId || conversation.dossierId?.toString();
   const question = input.question.trim();
 
   if (!question) throw new ValidationError('Question is required');
 
   if (conversation.scope === 'document' && !documentId) {
     throw new ValidationError('documentId is required for document conversations');
+  }
+
+  if (conversation.scope === 'folder' && !folderId) {
+    throw new ValidationError('folderId is required for folder conversations');
+  }
+
+  if (conversation.scope === 'dossier' && !dossierId) {
+    throw new ValidationError('dossierId is required for dossier conversations');
   }
 
   const userMessage = {
@@ -86,7 +120,7 @@ export const sendMessage = async (
 
   conversation.messages.push(userMessage);
 
-  const answer = await askQuestion(question, ownerId, documentId, input.topK || 5, input.responseLanguage);
+  const answer = await askQuestion(question, ownerId, documentId, input.topK || 5, input.responseLanguage, folderId, dossierId);
 
   const assistantMessage = {
     role: 'assistant' as const,
@@ -107,7 +141,7 @@ export const sendMessage = async (
   conversation.messages.push(assistantMessage);
   conversation.lastMessageAt = new Date();
 
-  if (!conversation.title || conversation.title === 'New document thread' || conversation.title === 'New global conversation') {
+  if (!conversation.title || conversation.title === 'New document thread' || conversation.title === 'New global conversation' || conversation.title === 'Folder conversation' || conversation.title === 'Dossier conversation') {
     conversation.title = question.slice(0, 80);
   }
 

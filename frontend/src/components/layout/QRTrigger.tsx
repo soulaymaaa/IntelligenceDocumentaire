@@ -11,9 +11,11 @@ interface QRTriggerProps {
   url?: string;
   title?: string;
   description?: string;
+  label?: string;
+  buttonTitle?: string;
 }
 
-export const QRTrigger = ({ className, url, title, description }: QRTriggerProps) => {
+export const QRTrigger = ({ className, url, title, description, label, buttonTitle }: QRTriggerProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { copy } = useLanguage();
 
@@ -25,13 +27,15 @@ export const QRTrigger = ({ className, url, title, description }: QRTriggerProps
         type="button"
         onClick={() => setIsModalOpen(true)}
         className={cn(
-          'rounded-xl p-2.5 text-slate-500 transition-all hover:bg-brand-50 hover:text-brand-600 hover:shadow-sm active:scale-95 dark:text-slate-400 dark:hover:bg-brand-500/10 dark:hover:text-brand-400',
+          'inline-flex items-center justify-center rounded-xl text-slate-400 transition-all active:scale-95 group hover:text-brand-500 hover:bg-brand-50 hover:shadow-sm hover:shadow-brand-500/10',
+          label ? 'gap-2 px-4 py-2.5 text-sm font-semibold' : 'p-2.5',
           className
         )}
-        title={copy.qr.openOnMobile}
-        aria-label={copy.qr.openOnMobile}
+        title={buttonTitle || copy.qr.openOnMobile}
+        aria-label={buttonTitle || label || copy.qr.openOnMobile}
       >
-        <QrCode className="h-5 w-5" />
+        <QrCode className="w-5 h-5 transition-transform group-hover:rotate-12" />
+        {label && <span>{label}</span>}
       </button>
 
       <QRCodeModal

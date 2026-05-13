@@ -57,7 +57,7 @@ export const Modal = ({ isOpen, onClose, title, children, className }: ModalProp
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="max-h-[calc(100vh-9rem)] overflow-y-auto p-6">{children}</div>
       </div>
     </div>,
     document.body

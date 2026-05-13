@@ -165,10 +165,26 @@ export const UploadZone = ({ onUploadComplete, folderId, folderName }: UploadZon
       {/* File list */}
       {files.length > 0 && (
         <div className="space-y-3 mt-6">
-          <div className="flex items-center justify-between px-1">
+          <div className="flex items-center justify-between gap-3 px-1">
              <p className="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Queue ({files.length})</p>
-             <button onClick={() => setFiles([])} className="text-[10px] font-extrabold text-red-500 hover:text-red-700 uppercase tracking-widest">Clear All</button>
+             <button
+               onClick={() => setFiles([])}
+               className="text-[10px] font-extrabold text-red-500 hover:text-red-700 uppercase tracking-widest"
+             >
+               Clear All
+             </button>
           </div>
+          {pendingCount > 0 && (
+            <Button
+              onClick={uploadAll}
+              isLoading={isUploading}
+              size="lg"
+              className="w-full justify-center rounded-2xl py-4 text-base shadow-lg shadow-brand-500/25"
+            >
+              <Upload className="w-5 h-5" />
+              Importer {pendingCount} fichier{pendingCount !== 1 ? 's' : ''}
+            </Button>
+          )}
           {files.map((uf) => (
             <div
               key={uf.id}
@@ -223,13 +239,7 @@ export const UploadZone = ({ onUploadComplete, folderId, folderName }: UploadZon
         </div>
       )}
 
-      {/* Upload button */}
-      {pendingCount > 0 && (
-        <Button onClick={uploadAll} isLoading={isUploading} className="w-full justify-center">
-          <Upload className="w-4 h-4" />
-          Upload {pendingCount} file{pendingCount !== 1 ? 's' : ''}
-        </Button>
-      )}
+      {/* Upload action is shown above the queue so it stays visible in smaller modals. */}
     </div>
   );
 };

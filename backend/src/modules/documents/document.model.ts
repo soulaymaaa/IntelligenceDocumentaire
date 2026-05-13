@@ -136,6 +136,7 @@ const documentSchema = new Schema<IDocument>(
 documentSchema.index({ ownerId: 1, status: 1 });
 documentSchema.index({ ownerId: 1, archived: 1 });
 documentSchema.index({ ownerId: 1, folderId: 1 });
+documentSchema.index({ ownerId: 1, dossierId: 1 });
 documentSchema.index({ ownerId: 1, originalName: 'text' });
 
 export const DocumentModel: Model<IDocument> = mongoose.model<IDocument>('Document', documentSchema);

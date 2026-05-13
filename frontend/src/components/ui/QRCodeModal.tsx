@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Copy, Check, Link as LinkIcon, Smartphone } from 'lucide-react';
 import { Modal } from './Modal';
@@ -23,6 +23,22 @@ export const QRCodeModal = ({
 }: QRCodeModalProps) => {
   const { copy } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
 
   const modalTitle = title ?? copy.qr.title;
   const modalDescription = description ?? copy.qr.description;
@@ -36,6 +52,8 @@ export const QRCodeModal = ({
       console.error('Failed to copy:', err);
     }
   };
+
+  if (!mounted) return null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} className="max-w-md">

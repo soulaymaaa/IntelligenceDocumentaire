@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, FolderClosed, FolderPlus, Trash2, Plus, Search, Pencil } from 'lucide-react';
+import { FileText, FolderClosed, FolderPlus, Trash2, Plus, Search, Pencil, Sparkles } from 'lucide-react';
 import { UploadZone } from '@/components/documents/UploadZone';
 import { DocumentCard } from '@/components/documents/DocumentCard';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -185,7 +185,7 @@ export default function FoldersPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
                           <Link
-                            href={`/documents?folderId=${folder._id}${search ? `&search=${encodeURIComponent(search)}` : ''}`}
+                            href={`/folders/${folder._id}`}
                             className="line-clamp-2 text-sm font-extrabold text-slate-900 transition-colors hover:text-brand-600 dark:text-slate-100"
                           >
                             {folder.name}
@@ -218,11 +218,11 @@ export default function FoldersPage() {
 
                         <div className="mt-5 flex items-center justify-between">
                           <Link
-                            href={`/documents?folderId=${folder._id}${search ? `&search=${encodeURIComponent(search)}` : ''}`}
+                            href={`/folders/${folder._id}`}
                             className="inline-flex items-center gap-2 text-xs font-extrabold text-brand-600 transition-colors hover:text-brand-700"
                           >
-                            <FolderClosed className="h-4 w-4" />
-                            {folderCopy.open}
+                            <Sparkles className="h-4 w-4" />
+                            {folderCopy.open} & AI Chat
                           </Link>
                           <button
                             onClick={() => {
@@ -254,7 +254,7 @@ export default function FoldersPage() {
                   <DocumentCard
                     key={doc._id}
                     document={doc}
-                    dossiers={folders as any}
+                    folders={folders}
                     onDelete={(id) => setDeleteDocTarget(id)}
                     onArchive={(id) => archiveDocMutation.mutate(id)}
                     onRestore={(id) => restoreDocMutation.mutate(id)}

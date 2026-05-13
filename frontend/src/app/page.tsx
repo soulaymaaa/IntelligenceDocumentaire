@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Footer } from '@/components/layout/Footer';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageToggle } from '@/components/layout/LanguageToggle';
+import { QRTrigger } from '@/components/layout/QRTrigger';
 import { useLanguage } from '@/providers/LanguageProvider';
 
 const featureIcons = [Upload, ScanText, FileSearch, MessageSquareText];
@@ -70,6 +71,12 @@ export default function HomePage() {
                   </Link>
                 </>
               )}
+              <QRTrigger
+                label={copy.home.mobileAccessShort}
+                title={copy.home.mobileAccessTitle}
+                description={copy.home.mobileAccessDescription}
+                className="min-w-[132px] rounded-full border border-surface-200 bg-white px-5 py-2.5 text-slate-700 shadow-sm hover:border-brand-200 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-900"
+              />
             </div>
           </div>
 
@@ -136,6 +143,12 @@ export default function HomePage() {
                   </Link>
                 </>
               )}
+              <QRTrigger
+                label={copy.home.mobileAccess}
+                title={copy.home.mobileAccessTitle}
+                description={copy.home.mobileAccessDescription}
+                className="rounded-full border border-white bg-white px-8 py-3.5 text-slate-700 shadow-sm hover:border-brand-200 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-900"
+              />
             </div>
 
             <p className="mt-6 text-sm font-medium text-slate-500 dark:text-slate-400">

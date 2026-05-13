@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Plus, Search, FileText, RefreshCw } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DocumentCard } from '@/components/documents/DocumentCard';
 import { UploadZone } from '@/components/documents/UploadZone';
@@ -10,9 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { SkeletonCard } from '@/components/ui/Spinner';
-import { documentsApi, dossiersApi } from '@/lib/api';
+import { documentsApi } from '@/lib/api';
 import { useLanguage } from '@/providers/LanguageProvider';
-import { getErrorMessage } from '@/lib/utils';
 import type { DocumentStatus } from '@/types';
 
 export default function DocumentsPage() {
@@ -106,17 +105,13 @@ export default function DocumentsPage() {
     },
   });
 
-
-
   const moveMutation = useMutation({
-    mutationFn: ({ id, dossierId }: { id: string; dossierId: string | null }) =>
-      documentsApi.move(id, dossierId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
-  });
-
-  const { data: dossiersData } = useQuery({
-    queryKey: ['dossiers'],
-    queryFn: () => dossiersApi.list(),
+    mutationFn: ({ id, folderId }: { id: string; folderId: string | null }) =>
+      documentsApi.moveToFolder(id, folderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['document-folders'] });
+    },
   });
 
   const docs = data?.documents || [];
@@ -127,7 +122,9 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{selectedFolderId !== 'unfiled' && selectedFolder ? selectedFolder.name : copy.documents.title}</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+            {selectedFolderId !== 'unfiled' && selectedFolder ? selectedFolder.name : copy.documents.title}
+          </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
             {meta?.total ?? '—'} {copy.documents.filesStored}
           </p>
@@ -155,14 +152,14 @@ export default function DocumentsPage() {
             className="shadow-sm border-surface-200"
           />
         </div>
-        <div className="flex items-center gap-1.5 bg-surface-100 border border-surface-200 rounded-2xl p-1.5 overflow-x-auto shadow-inner">
+        <div className="flex items-center gap-1.5 bg-surface-100 dark:bg-slate-800 border border-surface-200 dark:border-slate-700 rounded-2xl p-1.5 overflow-x-auto shadow-inner">
           {STATUS_TABS.map((t) => (
             <button
               key={t.label}
               onClick={() => { setStatusFilter(t.value); setPage(1); }}
               className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 statusFilter === t.value
-                  ? 'bg-card text-brand-600 dark:text-brand-400 shadow-sm border border-surface-200 dark:border-brand-500/20'
+                  ? 'bg-card dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm border border-surface-200 dark:border-brand-500/20'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-card/50'
               }`}
             >
@@ -182,7 +179,9 @@ export default function DocumentsPage() {
           <div className="w-20 h-20 bg-surface-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-surface-200 dark:border-slate-700">
             <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600" />
           </div>
-          <h3 className="text-slate-900 dark:text-slate-100 font-extrabold text-xl tracking-tight">{search ? copy.documents.noResults : selectedFolderId !== 'unfiled' ? folderCopy.emptyFolder : copy.documents.noResults}</h3>
+          <h3 className="text-slate-900 dark:text-slate-100 font-extrabold text-xl tracking-tight">
+            {search ? copy.documents.noResults : selectedFolderId !== 'unfiled' ? folderCopy.emptyFolder : copy.documents.noResults}
+          </h3>
           <p className="text-slate-500 dark:text-slate-400 mt-3 mb-8 max-w-md mx-auto font-medium">
             {search 
               ? copy.documents.noResultsHelper
@@ -202,14 +201,14 @@ export default function DocumentsPage() {
               <DocumentCard
                 key={doc._id}
                 document={doc}
-                dossiers={dossiersData || []}
+                folders={folders}
                 onDelete={(id) => setDeleteTarget(id)}
                 onArchive={(id) => archiveMutation.mutate(id)}
                 onRestore={(id) => restoreMutation.mutate(id)}
                 onRename={async (id, newName) => {
                   await renameMutation.mutateAsync({ id, newName });
                 }}
-                onMove={(id, dossierId) => moveMutation.mutate({ id, dossierId })}
+                onMove={(id, folderId) => moveMutation.mutate({ id, folderId })}
               />
             ))}
           </div>
@@ -266,7 +265,6 @@ export default function DocumentsPage() {
         confirmLabel={copy.documents.deleteConfirm}
         danger
       />
-
     </AppLayout>
   );
 }

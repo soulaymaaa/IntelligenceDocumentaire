@@ -10,6 +10,7 @@ export interface User {
   updatedAt: string;
 }
 
+// Deprecated, use DocumentFolder instead
 export interface Dossier {
   _id: string;
   ownerId: string;
@@ -22,8 +23,8 @@ export interface Dossier {
 export interface Document {
   _id: string;
   ownerId: string;
-  dossierId?: string;
-  folderId?: string | null; // Keep for compatibility with older code if any
+  folderId?: string | null;
+  dossierId?: string | null;
   filename: string;
   originalName: string;
   mimeType: string;
@@ -133,8 +134,10 @@ export interface ConversationMessage {
 export interface Conversation {
   _id: string;
   title: string;
-  scope: 'global' | 'document';
+  scope: 'global' | 'document' | 'folder' | 'dossier';
   documentId?: string;
+  folderId?: string;
+  dossierId?: string;
   lastMessageAt: string;
   createdAt: string;
   messages: ConversationMessage[];

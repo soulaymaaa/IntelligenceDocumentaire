@@ -1,4 +1,3 @@
-import { pipeline, env as xenovaEnv } from '@xenova/transformers';
 import mongoose from 'mongoose';
 import { DocumentChunkModel } from './chunk.model';
 import { DocumentModel } from '../documents/document.model';
@@ -6,13 +5,15 @@ import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { chunkArray, cosineSimilarity } from '../../utils/helpers';
 
-xenovaEnv.localModelPath = './models';
-xenovaEnv.allowRemoteModels = true;
-
 let extractorPipeline: any = null;
 
 const getExtractor = async () => {
   if (!extractorPipeline) {
+    const { pipeline, env: xenovaEnv } = await import('@xenova/transformers');
+
+    xenovaEnv.localModelPath = './models';
+    xenovaEnv.allowRemoteModels = true;
+
     logger.info('Initializing Xenova local embedding model (all-MiniLM-L6-v2)...');
     extractorPipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
     logger.info('Embedding model ready');
@@ -20,28 +21,12 @@ const getExtractor = async () => {
   return extractorPipeline;
 };
 
-// ── Chunking configuration ────────────────────────────────────────────────────
+const CHUNK_SIZE = 600;
+const CHUNK_OVERLAP = 120;
+const MIN_CHUNK_SIZE = 80;
+const EMBEDDING_BATCH_SIZE = 8;
 
-const CHUNK_SIZE = 600;          // target characters per chunk (smaller = more precise retrieval)
-const CHUNK_OVERLAP = 120;       // characters of overlap for continuity
-const MIN_CHUNK_SIZE = 80;       // discard tiny fragments
-const EMBEDDING_BATCH_SIZE = 8;  // batch size for CPU inference
-
-// ── Smart text chunking ───────────────────────────────────────────────────────
-
-/**
- * Splits text into semantically coherent chunks with overlap.
- *
- * Strategy (priority order):
- * 1. Split on double newlines (paragraph boundaries)
- * 2. Within an oversized paragraph, split on sentence endings
- * 3. Within an oversized sentence, split at word boundaries near CHUNK_SIZE
- *
- * Overlap is added by prepending the tail of the previous chunk so the
- * embedding model has context for the current chunk's beginning.
- */
 export const chunkText = (text: string): string[] => {
-  // Normalise whitespace — collapse 3+ newlines to 2, tabs to space
   const normalised = text
     .replace(/\r\n/g, '\n')
     .replace(/\t/g, ' ')
@@ -49,12 +34,7 @@ export const chunkText = (text: string): string[] => {
     .trim();
 
   const rawChunks = splitIntoRawChunks(normalised);
-
-  // Merge tiny trailing fragments into the preceding chunk
-  const merged = mergeSmallChunks(rawChunks);
-
-  // Add overlap context from the previous chunk
-  return addOverlap(merged);
+  return addOverlap(mergeSmallChunks(rawChunks));
 };
 
 const splitIntoRawChunks = (text: string): string[] => {
@@ -66,7 +46,6 @@ const splitIntoRawChunks = (text: string): string[] => {
     const trimmed = para.trim();
     if (!trimmed) continue;
 
-    // Heading detection — start a new chunk for headings
     const isHeading = /^(#{1,6}\s|\d+\.\s|[A-Z][A-Z\s]{2,}:)/.test(trimmed);
     if (isHeading && current.length > MIN_CHUNK_SIZE) {
       chunks.push(current.trim());
@@ -78,31 +57,31 @@ const splitIntoRawChunks = (text: string): string[] => {
 
     if (combined.length <= CHUNK_SIZE) {
       current = combined;
-    } else {
-      // Flush current buffer before processing the new paragraph
-      if (current.length >= MIN_CHUNK_SIZE) {
-        chunks.push(current.trim());
-      }
-
-      if (trimmed.length <= CHUNK_SIZE) {
-        current = trimmed;
-      } else {
-        // Oversized paragraph → split by sentence
-        const sentenceChunks = splitBySentence(trimmed);
-        if (sentenceChunks.length > 1) {
-          chunks.push(...sentenceChunks.slice(0, -1));
-          current = sentenceChunks[sentenceChunks.length - 1];
-        } else {
-          // No sentence boundaries — hard split at word boundaries
-          const wordChunks = splitByWords(trimmed);
-          chunks.push(...wordChunks.slice(0, -1));
-          current = wordChunks[wordChunks.length - 1] || '';
-        }
-      }
+      continue;
     }
+
+    if (current.length >= MIN_CHUNK_SIZE) {
+      chunks.push(current.trim());
+    }
+
+    if (trimmed.length <= CHUNK_SIZE) {
+      current = trimmed;
+      continue;
+    }
+
+    const sentenceChunks = splitBySentence(trimmed);
+    if (sentenceChunks.length > 1) {
+      chunks.push(...sentenceChunks.slice(0, -1));
+      current = sentenceChunks[sentenceChunks.length - 1];
+      continue;
+    }
+
+    const wordChunks = splitByWords(trimmed);
+    chunks.push(...wordChunks.slice(0, -1));
+    current = wordChunks[wordChunks.length - 1] || '';
   }
 
-  if (current.trim().length >= MIN_CHUNK_SIZE) {
+  if (current.trim().length >= MIN_CHUNK_SIZE || (current.trim().length > 0 && chunks.length === 0)) {
     chunks.push(current.trim());
   }
 
@@ -110,7 +89,6 @@ const splitIntoRawChunks = (text: string): string[] => {
 };
 
 const splitBySentence = (text: string): string[] => {
-  // Match sentence-ending punctuation followed by whitespace or end
   const sentences = text.split(/(?<=[.!?])\s+/);
   const chunks: string[] = [];
   let current = '';
@@ -164,14 +142,11 @@ const addOverlap = (chunks: string[]): string[] => {
   return chunks.map((chunk, i) => {
     if (i === 0) return chunk;
     const prev = chunks[i - 1];
-    // Take the last CHUNK_OVERLAP characters of the previous chunk at a word boundary
     const overlapRaw = prev.substring(Math.max(0, prev.length - CHUNK_OVERLAP));
-    const overlap = overlapRaw.replace(/^\S+\s/, ''); // start at a word boundary
+    const overlap = overlapRaw.replace(/^\S+\s/, '');
     return overlap ? `${overlap} ${chunk}` : chunk;
   });
 };
-
-// ── Embedding generation ──────────────────────────────────────────────────────
 
 export const generateEmbedding = async (text: string): Promise<number[]> => {
   const extractor = await getExtractor();
@@ -188,19 +163,15 @@ const generateEmbeddingsBatch = async (texts: string[]): Promise<number[][]> => 
   return output.tolist();
 };
 
-// ── Indexing pipeline ─────────────────────────────────────────────────────────
-
 export const indexDocument = async (documentId: string, text: string): Promise<void> => {
-  // Remove stale chunks from a previous indexing run
   await DocumentChunkModel.deleteMany({ documentId });
 
   const doc = await DocumentModel.findById(documentId).select('ownerId originalName').lean();
   if (!doc) throw new Error(`Document ${documentId} not found for indexing`);
 
   const chunks = chunkText(text);
-
   if (chunks.length === 0) {
-    logger.warn(`No chunks produced for document ${documentId} — text may be empty`);
+    logger.warn(`No chunks produced for document ${documentId}; text may be empty`);
     return;
   }
 
@@ -214,7 +185,6 @@ export const indexDocument = async (documentId: string, text: string): Promise<v
     logger.info(`  Embedding batch ${batchNum + 1}/${batches.length} (${batch.length} chunks)`);
 
     const embeddings = await generateEmbeddingsBatch(batch);
-
     const chunkDocs = batch.map((text, i) => ({
       documentId,
       ownerId: doc.ownerId,
@@ -231,31 +201,130 @@ export const indexDocument = async (documentId: string, text: string): Promise<v
   logger.info(`Indexing complete: ${chunkIndex} chunks stored for document ${documentId}`);
 };
 
-// ── Semantic search ───────────────────────────────────────────────────────────
+const normalizeLexical = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const LEXICAL_STOP_WORDS = new Set([
+  'a', 'about', 'an', 'and', 'are', 'dans', 'de', 'des', 'du', 'est', 'for', 'is', 'la', 'le', 'les',
+  'me', 'of', 'on', 'pour', 'que', 'qui', 'the', 'this', 'un', 'une', 'what',
+]);
+
+const tokenAliases = (token: string): string[] => {
+  const aliases: Record<string, string[]> = {
+    etudiant: ['etudiant', 'etudiante', 'etudiant(e)', 'stagiaire', 'student'],
+    student: ['student', 'etudiant', 'etudiante', 'stagiaire'],
+    stagiaire: ['stagiaire', 'etudiant', 'etudiante', 'student'],
+    nom: ['nom', 'name', 'appele', 'appelle'],
+    name: ['name', 'nom'],
+    cin: ['cin', 'cni', 'numero'],
+  };
+  return aliases[token] || [token];
+};
+
+const buildLexicalGroups = (query: string): string[][] => {
+  const tokens = normalizeLexical(query)
+    .split(/[^a-z0-9]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && !LEXICAL_STOP_WORDS.has(token));
+
+  const uniqueTokens = Array.from(new Set(tokens));
+  return uniqueTokens.map((token) => Array.from(new Set(tokenAliases(token).map(normalizeLexical))));
+};
 
 export const semanticSearch = async (
   queryEmbedding: number[],
   ownerId: string,
   topK = 5,
-  documentId?: string
+  documentId?: string,
+  folderId?: string,
+  dossierId?: string
 ): Promise<Array<{ chunk: any; score: number }>> => {
   if (env.VECTOR_SEARCH_ENABLED) {
-    const vectorResults = await vectorSemanticSearch(queryEmbedding, ownerId, topK, documentId);
+    const vectorResults = await vectorSemanticSearch(queryEmbedding, ownerId, topK, documentId, folderId, dossierId);
     if (vectorResults) return vectorResults;
   }
 
-  return cosineSemanticSearch(queryEmbedding, ownerId, topK, documentId);
+  return cosineSemanticSearch(queryEmbedding, ownerId, topK, documentId, folderId, dossierId);
+};
+
+export const lexicalSearch = async (
+  query: string,
+  ownerId: string,
+  topK = 5,
+  documentId?: string,
+  folderId?: string,
+  dossierId?: string
+): Promise<Array<{ chunk: any; score: number }>> => {
+  const groups = buildLexicalGroups(query);
+  if (groups.length === 0) return [];
+
+  const filter = await buildChunkFilter(ownerId, documentId, folderId, dossierId);
+  const chunks = await DocumentChunkModel.find(filter)
+    .populate('documentId', 'originalName')
+    .lean();
+
+  if (chunks.length === 0) return [];
+
+  return chunks
+    .map((chunk) => {
+      const text = normalizeLexical(`${(chunk.documentId as any)?.originalName || ''}\n${chunk.text}`);
+      const matchedGroups = groups.filter((aliases) => aliases.some((alias) => text.includes(alias)));
+      const matchedCount = matchedGroups.length;
+      const occurrenceBonus = Math.min(
+        0.18,
+        matchedGroups.reduce((sum, aliases) => {
+          const hits = aliases.reduce((aliasHits, alias) => {
+            const pattern = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+            return aliasHits + (text.match(pattern)?.length || 0);
+          }, 0);
+          return sum + Math.min(hits, 3) * 0.03;
+        }, 0)
+      );
+
+      return {
+        chunk,
+        score: matchedCount === 0 ? 0 : Math.min(0.72, 0.14 + (matchedCount / groups.length) * 0.42 + occurrenceBonus),
+      };
+    })
+    .filter((result) => result.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+};
+
+const buildChunkFilter = async (
+  ownerId: string,
+  documentId?: string,
+  folderId?: string,
+  dossierId?: string
+): Promise<Record<string, unknown>> => {
+  const filter: Record<string, unknown> = { ownerId };
+  if (documentId) filter.documentId = documentId;
+
+  if (folderId) {
+    const docsInFolder = await DocumentModel.find({ folderId, ownerId }).select('_id').lean();
+    filter.documentId = { $in: docsInFolder.map((doc) => doc._id) };
+  }
+
+  if (dossierId) {
+    const docsInDossier = await DocumentModel.find({ dossierId, ownerId }).select('_id').lean();
+    filter.documentId = { $in: docsInDossier.map((doc) => doc._id) };
+  }
+
+  return filter;
 };
 
 const cosineSemanticSearch = async (
   queryEmbedding: number[],
   ownerId: string,
   topK = 5,
-  documentId?: string
+  documentId?: string,
+  folderId?: string,
+  dossierId?: string
 ): Promise<Array<{ chunk: any; score: number }>> => {
-  const filter: any = { ownerId };
-  if (documentId) filter.documentId = documentId;
-
+  const filter = await buildChunkFilter(ownerId, documentId, folderId, dossierId);
   const chunks = await DocumentChunkModel.find(filter)
     .populate('documentId', 'originalName')
     .lean();
@@ -281,17 +350,38 @@ type AtlasVectorSearchResult = {
   documentOriginalName?: string;
 };
 
+const buildVectorFilter = async (
+  ownerId: string,
+  documentId?: string,
+  folderId?: string,
+  dossierId?: string
+): Promise<Record<string, unknown>> => {
+  const filter: Record<string, unknown> = { ownerId: new mongoose.Types.ObjectId(ownerId) };
+  if (documentId) filter.documentId = new mongoose.Types.ObjectId(documentId);
+
+  if (folderId) {
+    const docsInFolder = await DocumentModel.find({ folderId, ownerId }).select('_id').lean();
+    filter.documentId = { $in: docsInFolder.map((doc) => doc._id) };
+  }
+
+  if (dossierId) {
+    const docsInDossier = await DocumentModel.find({ dossierId, ownerId }).select('_id').lean();
+    filter.documentId = { $in: docsInDossier.map((doc) => doc._id) };
+  }
+
+  return filter;
+};
+
 const vectorSemanticSearch = async (
   queryEmbedding: number[],
   ownerId: string,
   topK = 5,
-  documentId?: string
+  documentId?: string,
+  folderId?: string,
+  dossierId?: string
 ): Promise<Array<{ chunk: any; score: number }> | null> => {
   try {
-    const ownerObjectId = new mongoose.Types.ObjectId(ownerId);
-    const filter: Record<string, unknown> = { ownerId: ownerObjectId };
-    if (documentId) filter.documentId = new mongoose.Types.ObjectId(documentId);
-
+    const filter = await buildVectorFilter(ownerId, documentId, folderId, dossierId);
     const numCandidates = Math.max(topK * 20, 100);
 
     const agg = [

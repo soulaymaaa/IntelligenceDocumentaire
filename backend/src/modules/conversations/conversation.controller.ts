@@ -7,21 +7,27 @@ import { createConversation, getConversation, listConversations, sendMessage } f
 
 const createConversationSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
-  scope: z.enum(['global', 'document']).optional(),
+  scope: z.enum(['global', 'document', 'folder', 'dossier']).optional(),
   documentId: z.string().optional(),
+  folderId: z.string().optional(),
+  dossierId: z.string().optional(),
 });
 
 const sendMessageSchema = z.object({
   question: z.string().trim().min(1).max(1000),
   topK: z.number().min(1).max(10).optional().default(5),
   documentId: z.string().optional(),
+  folderId: z.string().optional(),
+  dossierId: z.string().optional(),
   responseLanguage: z.enum(['fr', 'en']).optional().default('fr'),
 });
 
 export const list = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
-  const scope = req.query.scope === 'global' || req.query.scope === 'document' ? req.query.scope : undefined;
-  const documentId = typeof req.query.documentId === 'string' ? req.query.documentId : undefined;
-  const conversations = await listConversations(req.userId!, scope, documentId);
+  const scope = req.query.scope as any;
+  const documentId = req.query.documentId as string;
+  const folderId = req.query.folderId as string;
+  const dossierId = req.query.dossierId as string;
+  const conversations = await listConversations(req.userId!, scope, documentId, folderId, dossierId);
   return successResponse(res, { conversations });
 });
 

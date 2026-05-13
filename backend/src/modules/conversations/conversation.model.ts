@@ -7,7 +7,7 @@ export interface RagHighlight {
   matchedTerms: string[];
 }
 
-export type ConversationScope = 'global' | 'document';
+export type ConversationScope = 'global' | 'document' | 'folder' | 'dossier';
 export type ConversationRole = 'user' | 'assistant';
 
 export interface IConversationMessage {
@@ -25,6 +25,8 @@ export interface IConversation extends Document {
   title: string;
   scope: ConversationScope;
   documentId?: Types.ObjectId;
+  folderId?: Types.ObjectId;
+  dossierId?: Types.ObjectId;
   messages: IConversationMessage[];
   lastMessageAt: Date;
   createdAt: Date;
@@ -85,13 +87,25 @@ const conversationSchema = new Schema<IConversation>(
     },
     scope: {
       type: String,
-      enum: ['global', 'document'],
+      enum: ['global', 'document', 'folder', 'dossier'],
       required: true,
+      index: true,
+    },
+    folderId: {
+      type: Schema.Types.ObjectId,
+      ref: 'DocumentFolder',
+      default: undefined,
       index: true,
     },
     documentId: {
       type: Schema.Types.ObjectId,
       ref: 'Document',
+      default: undefined,
+      index: true,
+    },
+    dossierId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Dossier',
       default: undefined,
       index: true,
     },
@@ -118,6 +132,8 @@ const conversationSchema = new Schema<IConversation>(
 
 conversationSchema.index({ ownerId: 1, scope: 1, lastMessageAt: -1 });
 conversationSchema.index({ ownerId: 1, documentId: 1, lastMessageAt: -1 });
+conversationSchema.index({ ownerId: 1, folderId: 1, lastMessageAt: -1 });
+conversationSchema.index({ ownerId: 1, dossierId: 1, lastMessageAt: -1 });
 
 export const ConversationModel: Model<IConversation> = mongoose.model<IConversation>(
   'Conversation',

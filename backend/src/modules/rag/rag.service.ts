@@ -1,4 +1,4 @@
-import { generateEmbedding, semanticSearch } from '../embeddings/embedding.service';
+import { generateEmbedding, lexicalSearch, semanticSearch } from '../embeddings/embedding.service';
 import { chatCompletionWithRetry } from '../../utils/llm';
 import { logger } from '../../utils/logger';
 
@@ -289,6 +289,26 @@ const postProcess = (text: string, sources: RagSource[]): string => {
   return out.replace(/\n{3,}/g, '\n\n').trim();
 };
 
+const mergeRetrievalResults = (
+  semanticResults: Array<{ chunk: any; score: number }>,
+  lexicalResults: Array<{ chunk: any; score: number }>,
+  limit: number
+): Array<{ chunk: any; score: number }> => {
+  const byChunkId = new Map<string, { chunk: any; score: number }>();
+
+  for (const result of [...semanticResults, ...lexicalResults]) {
+    const key = result.chunk._id.toString();
+    const existing = byChunkId.get(key);
+    if (!existing || result.score > existing.score) {
+      byChunkId.set(key, result);
+    }
+  }
+
+  return Array.from(byChunkId.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
@@ -298,11 +318,13 @@ export const askQuestion = async (
   ownerId: string,
   documentId?: string,
   topK = 6,
-  responseLanguageInput?: ResponseLanguage
+  responseLanguageInput?: ResponseLanguage,
+  folderId?: string,
+  dossierId?: string
 ): Promise<RagAnswer> => {
   const responseLanguage = normaliseResponseLanguage(responseLanguageInput);
   const responseLanguageName = getResponseLanguageName(responseLanguage);
-  logger.info(`RAG: "${question}" (doc: ${documentId ?? 'global'})`);
+  logger.info(`RAG: "${question}" (doc: ${documentId ?? 'global'}, folder: ${folderId ?? 'none'}, dossier: ${dossierId ?? 'none'})`);
 
   // ── 1. Small-talk bypass ────────────────────────────────────────────────
   if (isSmallTalk(question)) {
@@ -323,10 +345,14 @@ export const askQuestion = async (
 
   // ── 2. Semantic retrieval ───────────────────────────────────────────────
   const overviewMode = isOverview(question);
-  const effectiveTopK = overviewMode ? Math.max(topK, 8) : topK;
+  const scopedFolderMode = Boolean((folderId || dossierId) && !documentId);
+  const effectiveTopK = overviewMode ? Math.max(topK, 8) : scopedFolderMode ? Math.max(topK, 10) : topK;
+  const retrievalTopK = scopedFolderMode ? Math.max(effectiveTopK * 2, 18) : effectiveTopK;
 
   const queryEmbedding = await generateEmbedding(question);
-  const allResults = await semanticSearch(queryEmbedding, ownerId, effectiveTopK, documentId);
+  const semanticResults = await semanticSearch(queryEmbedding, ownerId, retrievalTopK, documentId, folderId, dossierId);
+  const lexicalResults = await lexicalSearch(question, ownerId, Math.max(6, topK), documentId, folderId, dossierId);
+  const allResults = mergeRetrievalResults(semanticResults, lexicalResults, effectiveTopK);
 
   let results = allResults.filter(({ score }) => score >= RELEVANCE_THRESHOLD);
   if (results.length === 0 && allResults.length > 0) results = allResults.slice(0, 4);

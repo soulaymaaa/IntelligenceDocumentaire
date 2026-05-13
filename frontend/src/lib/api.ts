@@ -151,6 +151,11 @@ export const documentsApi = {
     return extractData(res).document;
   },
 
+  getFolder: async (id: string): Promise<DocumentFolder> => {
+    const res = await api.get<ApiResponse<{ folder: DocumentFolder }>>(`/documents/folders/${id}`);
+    return extractData(res).folder;
+  },
+
   upload: async (
     files: File[],
     onProgress?: (pct: number) => void,
@@ -213,7 +218,7 @@ export const documentsApi = {
   },
 };
 
-// ── Dossiers ──────────────────────────────────────────────────────────────────
+// ── Dossiers (Deprecated/To be removed) ───────────────────────────────────────
 
 export const dossiersApi = {
   list: async (): Promise<Dossier[]> => {
@@ -239,9 +244,9 @@ export const dossiersApi = {
 // --- Search ---
 
 export const searchApi = {
-  semantic: async (query: string, topK = 5, documentId?: string): Promise<SearchResult[]> => {
+  semantic: async (query: string, topK = 5, documentId?: string, folderId?: string, dossierId?: string): Promise<SearchResult[]> => {
     const res = await api.post<ApiResponse<{ results: SearchResult[] }>>('/search/semantic', {
-      query, topK, documentId,
+      query, topK, documentId, folderId, dossierId,
     });
     return extractData(res).results;
   },
@@ -292,15 +297,17 @@ export const aiApi = {
 // --- Conversations ---
 
 export const conversationsApi = {
-  list: async (params?: { scope?: 'global' | 'document'; documentId?: string }): Promise<Conversation[]> => {
+  list: async (params?: { scope?: 'global' | 'document' | 'folder' | 'dossier'; documentId?: string; folderId?: string; dossierId?: string }): Promise<Conversation[]> => {
     const res = await api.get<ApiResponse<{ conversations: Conversation[] }>>('/conversations', { params });
     return extractData(res).conversations;
   },
 
   create: async (data?: {
     title?: string;
-    scope?: 'global' | 'document';
+    scope?: 'global' | 'document' | 'folder' | 'dossier';
     documentId?: string;
+    folderId?: string;
+    dossierId?: string;
   }): Promise<Conversation> => {
     const res = await api.post<ApiResponse<{ conversation: Conversation }>>('/conversations', data || {});
     return extractData(res).conversation;
@@ -313,7 +320,7 @@ export const conversationsApi = {
 
   sendMessage: async (
     id: string,
-    payload: { question: string; topK?: number; documentId?: string; responseLanguage?: 'fr' | 'en' }
+    payload: { question: string; topK?: number; documentId?: string; folderId?: string; dossierId?: string; responseLanguage?: 'fr' | 'en' }
   ): Promise<{ conversation: Conversation; answer: RagAnswer }> => {
     const res = await api.post<ApiResponse<{ conversation: Conversation; answer: RagAnswer }>>(
       `/conversations/${id}/messages`,

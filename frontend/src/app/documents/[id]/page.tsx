@@ -129,7 +129,7 @@ const PdfPreview = ({ url, originalName }: { url: string; originalName: string }
 };
 
 type ScannedImagePreview = {
-  pdfUrl: string;
+  imageUrl: string;
   width: number;
   height: number;
 };
@@ -571,43 +571,18 @@ const sharpenScanImage = (imageData: ImageData, width: number, height: number, a
   }
 };
 
-const createScanPdfUrl = (canvas: HTMLCanvasElement, originalName: string) => {
-  const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
-  const pdf = new jsPDF({
-    orientation,
-    unit: 'pt',
-    format: 'a4',
-    compress: true,
+const createCanvasImageUrl = (canvas: HTMLCanvasElement) =>
+  new Promise<string>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Image preview export failed'));
+        return;
+      }
+      resolve(URL.createObjectURL(blob));
+    }, 'image/png');
   });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 18;
-  const maxWidth = pageWidth - margin * 2;
-  const maxHeight = pageHeight - margin * 2;
-  const imageRatio = canvas.width / canvas.height;
-  let imageWidth = maxWidth;
-  let imageHeight = imageWidth / imageRatio;
 
-  if (imageHeight > maxHeight) {
-    imageHeight = maxHeight;
-    imageWidth = imageHeight * imageRatio;
-  }
-
-  const x = (pageWidth - imageWidth) / 2;
-  const y = (pageHeight - imageHeight) / 2;
-  pdf.setProperties({
-    title: originalName,
-    subject: 'Scanned document preview',
-    creator: 'Intelligence Documentaire',
-  });
-  pdf.setFillColor(255, 255, 255);
-  pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, imageWidth, imageHeight, undefined, 'NONE');
-
-  return URL.createObjectURL(pdf.output('blob'));
-};
-
-const createScannedImagePreview = async (url: string, originalName: string): Promise<ScannedImagePreview> => {
+const createScannedImagePreview = async (url: string): Promise<ScannedImagePreview> => {
   const image = await loadPreviewImage(url);
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
@@ -714,10 +689,10 @@ const createScannedImagePreview = async (url: string, originalName: string): Pro
 
   sharpenScanImage(imageData, finalWidth, finalHeight);
   finalContext.putImageData(imageData, 0, 0);
-  const pdfUrl = createScanPdfUrl(trimmedCanvas, originalName);
+  const imageUrl = await createCanvasImageUrl(trimmedCanvas);
 
   return {
-    pdfUrl,
+    imageUrl,
     width: finalWidth,
     height: finalHeight,
   };
@@ -726,24 +701,22 @@ const createScannedImagePreview = async (url: string, originalName: string): Pro
 const ImagePreview = ({ url, originalName }: { url: string; originalName: string }) => {
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [scanPreview, setScanPreview] = useState<ScannedImagePreview | null>(null);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
     setStatus('loading');
-    setPdfPreviewUrl(null);
     setScanPreview(null);
 
-    createScannedImagePreview(url, originalName)
+    createScannedImagePreview(url)
       .then((preview) => {
-        objectUrl = preview.pdfUrl;
+        objectUrl = preview.imageUrl;
         if (cancelled) {
-          URL.revokeObjectURL(preview.pdfUrl);
+          URL.revokeObjectURL(preview.imageUrl);
           return;
         }
         setScanPreview(preview);
-        setPdfPreviewUrl(preview.pdfUrl);
+        setStatus('ok');
       })
       .catch(() => {
         if (cancelled) return;
@@ -757,7 +730,7 @@ const ImagePreview = ({ url, originalName }: { url: string; originalName: string
   }, [url, originalName]);
 
   return (
-    <div className="relative h-[680px] w-full overflow-hidden rounded-2xl border border-surface-200 bg-slate-200 dark:border-slate-700 dark:bg-slate-950">
+    <div className="relative flex h-[680px] w-full items-center justify-center overflow-auto rounded-2xl border border-surface-200 bg-slate-100 p-4 dark:border-slate-700 dark:bg-slate-950">
       {status === 'loading' && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-100/95 dark:bg-slate-950/95">
           <Spinner size="lg" />
@@ -776,14 +749,12 @@ const ImagePreview = ({ url, originalName }: { url: string; originalName: string
         </div>
       )}
 
-      {pdfPreviewUrl && status !== 'error' && (
-        <iframe
-          title={`Apercu PDF - ${originalName}`}
-          src={`${pdfPreviewUrl}#toolbar=1&navpanes=0&view=FitH`}
-          className="h-full w-full bg-white"
-          onLoad={() => setStatus('ok')}
+      {scanPreview && status !== 'error' && (
+        <img
+          src={scanPreview.imageUrl}
+          alt={`Apercu nettoye de ${originalName}`}
+          className="max-h-[620px] max-w-full rounded-lg bg-white object-contain shadow-lg shadow-slate-900/10"
           onError={() => setStatus('error')}
-          style={scanPreview ? { colorScheme: 'light' } : undefined}
         />
       )}
     </div>

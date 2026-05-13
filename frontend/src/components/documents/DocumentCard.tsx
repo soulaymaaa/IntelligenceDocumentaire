@@ -5,16 +5,16 @@ import Link from 'next/link';
 import { FileText, Image, Calendar, HardDrive, Trash2, Archive, Undo2, MessageSquareText, FolderInput, X, Pencil, Check, Presentation, FileSpreadsheet } from 'lucide-react';
 import { cn, formatBytes, formatDateShort, truncate } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/Badge';
-import type { Document, Dossier } from '@/types';
+import type { Document, DocumentFolder } from '@/types';
 
 interface DocumentCardProps {
   document: Document;
-  dossiers?: Dossier[];
+  folders?: DocumentFolder[];
   onDelete?: (id: string) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
   onRename?: (id: string, newName: string) => Promise<void>;
-  onMove?: (id: string, dossierId: string | null) => void;
+  onMove?: (id: string, folderId: string | null) => void;
 }
 
 const mimeIcon = (mime: string, filename: string) => {
@@ -32,7 +32,7 @@ const mimeIcon = (mime: string, filename: string) => {
 
 export const DocumentCard = ({ 
   document: doc, 
-  dossiers = [], 
+  folders = [], 
   onDelete, 
   onArchive, 
   onRestore, 
@@ -44,7 +44,7 @@ export const DocumentCard = ({
   const [newName, setNewName] = useState(doc.originalName);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currentDossier = dossiers.find((d) => d._id === doc.dossierId || d._id === doc.folderId);
+  const currentFolder = folders.find((f) => f._id === doc.folderId);
 
   const handleRename = async () => {
     if (!onRename || newName.trim() === '' || newName === doc.originalName) {
@@ -75,12 +75,12 @@ export const DocumentCard = ({
 
   return (
     <div className={cn(
-      'group bg-white rounded-2xl p-5 shadow-sm border border-slate-200 relative',
-      'hover:shadow-md hover:border-brand-200 hover:translate-y-[-2px] transition-all duration-300',
+      'group bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 relative',
+      'hover:shadow-md hover:border-brand-200 dark:hover:border-brand-800 hover:translate-y-[-2px] transition-all duration-300',
     )}>
       <div className="flex items-start gap-4">
         {/* Icon */}
-        <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 shadow-inner group-hover:bg-brand-50 transition-colors">
+        <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-inner group-hover:bg-brand-50 dark:group-hover:bg-brand-900/20 transition-colors">
           {mimeIcon(doc.mimeType, doc.originalName)}
         </div>
 
@@ -96,19 +96,19 @@ export const DocumentCard = ({
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={isSubmitting}
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                  className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
                 />
                 <button
                   onClick={handleRename}
                   disabled={isSubmitting}
-                  className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
+                  className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
                 >
                   <Check className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => { setIsEditing(false); setNewName(doc.originalName); }}
                   disabled={isSubmitting}
-                  className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                  className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -116,7 +116,7 @@ export const DocumentCard = ({
             ) : (
               <Link
                 href={`/documents/${doc._id}`}
-                className="text-slate-900 font-bold text-sm leading-snug hover:text-brand-600 transition-colors line-clamp-2"
+                className="text-slate-900 dark:text-slate-100 font-bold text-sm leading-snug hover:text-brand-600 dark:hover:text-brand-400 transition-colors line-clamp-2"
               >
                 {doc.originalName}
               </Link>
@@ -130,7 +130,7 @@ export const DocumentCard = ({
               {onRename && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-all border border-transparent hover:border-brand-100"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all border border-transparent hover:border-brand-100"
                   title="Rename"
                 >
                   <Pencil className="w-4 h-4" />
@@ -139,8 +139,8 @@ export const DocumentCard = ({
               {onMove && (
                 <button
                   onClick={() => setShowFolderPicker((v) => !v)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-all border border-transparent hover:border-brand-100"
-                  title="Move to dossier"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all border border-transparent hover:border-brand-100"
+                  title="Move to Folder"
                 >
                   <FolderInput className="w-4 h-4" />
                 </button>
@@ -148,7 +148,7 @@ export const DocumentCard = ({
               {!doc.archived && onArchive && (
                 <button
                   onClick={() => onArchive(doc._id)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all border border-transparent hover:border-amber-100"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all border border-transparent hover:border-amber-100"
                   title="Archive"
                 >
                   <Archive className="w-4 h-4" />
@@ -157,7 +157,7 @@ export const DocumentCard = ({
               {doc.archived && onRestore && (
                 <button
                   onClick={() => onRestore(doc._id)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all border border-transparent hover:border-emerald-100"
                   title="Restore"
                 >
                   <Undo2 className="w-4 h-4" />
@@ -166,7 +166,7 @@ export const DocumentCard = ({
               {onDelete && (
                 <button
                   onClick={() => onDelete(doc._id)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border border-transparent hover:border-red-100"
                   title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -186,21 +186,21 @@ export const DocumentCard = ({
               <Calendar className="w-3.5 h-3.5 opacity-70" />
               {formatDateShort(doc.createdAt)}
             </span>
-            {currentDossier && (
+            {currentFolder && (
               <span
                 className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: currentDossier.color + '22', color: currentDossier.color }}
+                style={{ backgroundColor: currentFolder.color + '22', color: currentFolder.color }}
               >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: currentDossier.color }} />
-                {currentDossier.name}
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: currentFolder.color }} />
+                {currentFolder.name}
               </span>
             )}
           </div>
 
           {/* Summary preview */}
           {doc.summary && (
-            <div className="mt-3.5 p-3 rounded-xl bg-slate-50/80 border border-slate-100/50">
-              <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed italic">
+            <div className="mt-3.5 p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100/50 dark:border-slate-700/50">
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed italic">
                 "{truncate(doc.summary, 120)}"
               </p>
             </div>
@@ -212,7 +212,7 @@ export const DocumentCard = ({
             </span>
             <Link
               href={`/documents/${doc._id}`}
-              className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 transition-colors hover:text-brand-700"
+              className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 dark:text-brand-400 transition-colors hover:text-brand-700 dark:hover:text-brand-300"
             >
               <MessageSquareText className="w-3.5 h-3.5" />
               Open workspace
@@ -225,36 +225,36 @@ export const DocumentCard = ({
       {showFolderPicker && onMove && (
         <div className="absolute right-4 top-12 z-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-2 min-w-[160px]">
           <div className="flex items-center justify-between px-2 pb-1.5 mb-1 border-b border-slate-100 dark:border-slate-700">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Dossier</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Folder</span>
             <button onClick={() => setShowFolderPicker(false)} className="text-slate-300 hover:text-slate-500">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-          {(doc.dossierId || doc.folderId) && (
+          {doc.folderId && (
             <button
               onClick={() => { onMove(doc._id, null); setShowFolderPicker(false); }}
-              className="w-full text-left px-2.5 py-1.5 text-xs rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="w-full text-left px-2.5 py-1.5 text-xs rounded-lg text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors"
             >
-              Remove from dossier
+              Remove from Folder
             </button>
           )}
-          {dossiers.map((d) => (
+          {folders.map((f) => (
             <button
-              key={d._id}
-              onClick={() => { onMove(doc._id, d._id); setShowFolderPicker(false); }}
+              key={f._id}
+              onClick={() => { onMove(doc._id, f._id); setShowFolderPicker(false); }}
               className={cn(
                 'w-full text-left px-2.5 py-1.5 text-xs rounded-lg flex items-center gap-2 transition-colors',
-                (doc.dossierId === d._id || doc.folderId === d._id)
-                  ? 'font-bold text-brand-600 bg-brand-50'
-                  : 'text-slate-600 hover:bg-slate-50'
+                doc.folderId === f._id
+                  ? 'font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
               )}
             >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-              <span className="truncate">{d.name}</span>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
+              <span className="truncate">{f.name}</span>
             </button>
           ))}
-          {dossiers.length === 0 && (
-            <p className="px-2.5 py-1.5 text-[11px] text-slate-400 italic">No dossiers yet</p>
+          {folders.length === 0 && (
+            <p className="px-2.5 py-1.5 text-[11px] text-slate-400 italic">No folders yet</p>
           )}
         </div>
       )}

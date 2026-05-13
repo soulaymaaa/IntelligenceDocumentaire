@@ -29,8 +29,6 @@ router.patch('/:id/restore', documentController.restoreDocument);
 router.patch('/:id/rename', documentController.renameDocument);
 router.patch('/:id/folder', documentController.moveDocumentToFolder);
 
-// Dossier assignment
-router.patch('/:id/move', documentController.moveDocument);
 
 // OCR & Indexing
 router.post('/:id/run-ocr', documentController.runOcr);
