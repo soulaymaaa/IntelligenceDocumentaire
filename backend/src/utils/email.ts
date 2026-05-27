@@ -162,19 +162,19 @@ export const sendReminderEmail = async (
     const info = await transporter.sendMail({
       from: env.SMTP_FROM || transportConfig.auth.user,
       to,
-      subject: `Rappel : Tâche pour demain`,
-      text: `Ceci est un rappel pour votre tâche prévue demain (${taskDate}) : ${taskText}`,
+      subject: `Task Reminder for Tomorrow`,
+      text: `This is a reminder for your scheduled task tomorrow (${taskDate}): ${taskText}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; color: #1e293b;">
-          <h2 style="color: #2563eb; margin-top: 0;">Rappel de tâche</h2>
-          <p>Bonjour,</p>
-          <p>Ceci est un rappel automatique pour votre tâche prévue <strong>demain</strong> (${taskDate}) :</p>
+          <h2 style="color: #2563eb; margin-top: 0;">Task Reminder</h2>
+          <p>Hello,</p>
+          <p>This is a reminder for your scheduled task <strong>tomorrow</strong> (${taskDate}):</p>
           <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 16px; margin: 20px 0; font-size: 16px; font-weight: bold;">
             ${taskText}
           </div>
-          <p>N'oubliez pas de consulter votre planificateur pour gérer vos tâches.</p>
+          <p>Remember to check your planner to manage your tasks.</p>
           <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #64748b;">Intelligence Documentaire - Votre assistant intelligent</p>
+          <p style="font-size: 12px; color: #64748b;">Intelligence Documentaire - Your intelligent assistant</p>
         </div>
       `,
     });

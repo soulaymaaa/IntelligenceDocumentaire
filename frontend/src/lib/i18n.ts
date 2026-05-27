@@ -91,7 +91,7 @@ export const translations = {
       noAccount: "Don't have an account?",
       createOne: 'Create one',
       verifyNow: 'Verify now',
-      registerKicker: 'Join Platform',
+      registerKicker: 'Begin your journey',
       registerTitle: 'Create account',
       registerSubtitle: 'Start analyzing documents with AI in minutes',
       fullName: 'Full name',

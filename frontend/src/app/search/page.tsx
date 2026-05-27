@@ -72,19 +72,19 @@ export default function SearchPage() {
     <AppLayout>
       <div className="grid gap-8 xl:grid-cols-[320px,1fr]">
         <div className="space-y-6">
-          <Card className="border-surface-200 bg-gradient-to-br from-brand-600 via-brand-500 to-cyan-500 text-white">
+          <Card className="hero-banner border-surface-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/75">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-600/80 dark:text-white/75">
                   {copy.search.workspace.title}
                 </p>
-                <h1 className="mt-2 text-3xl font-extrabold tracking-tight">
+                <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                   {copy.search.workspace.subtitle}
                 </h1>
               </div>
-              <Brain className="w-10 h-10 text-white/80" />
+              <Brain className="h-10 w-10 text-brand-600 dark:text-white/80" />
             </div>
-            <p className="mt-4 text-sm font-medium leading-6 text-white/85">
+            <p className="mt-4 text-sm font-medium leading-6 text-slate-600 dark:text-white/85">
               {copy.search.workspace.description}
             </p>
           </Card>
@@ -204,14 +204,14 @@ export default function SearchPage() {
             </Card>
           )}
 
-          <Card className="border-surface-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white">
+          <Card className="hero-banner border-surface-200">
             <div className="flex items-center gap-3">
-              <Sparkles className="w-6 h-6 text-cyan-300" />
+              <Sparkles className="h-6 w-6 text-brand-600 dark:text-cyan-300" />
               <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-cyan-200/80">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-600/80 dark:text-cyan-200/80">
                   {copy.search.footer.tag}
                 </p>
-                <p className="mt-1 text-lg font-extrabold tracking-tight">
+                <p className="mt-1 text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
                   {copy.search.footer.title}
                 </p>
               </div>

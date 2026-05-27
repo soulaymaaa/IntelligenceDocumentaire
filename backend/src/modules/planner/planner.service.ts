@@ -25,7 +25,7 @@ export const initReminderJob = () => {
       if (now.getHours() === 9) {
         const tomorrow = format(addDays(now, 1), 'yyyy-MM-dd');
         defaultReminders = await PlannerTask.find({
-          date: tomorrow,
+          $or: [{ endDate: tomorrow }, { endDate: { $exists: false }, date: tomorrow }],
           reminderAt: { $exists: false }, // Only those without custom reminder
           completed: false,
           reminderSent: false
@@ -38,7 +38,7 @@ export const initReminderJob = () => {
         const user = task.userId as any;
         if (user && user.email) {
           try {
-            await sendReminderEmail(user.email, task.text, task.date);
+            await sendReminderEmail(user.email, task.text, task.endDate || task.date);
             task.reminderSent = true;
             await task.save();
           } catch (err) {

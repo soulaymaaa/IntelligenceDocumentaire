@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
           <Input
             label={copy.auth.emailAddress}
             type="email"
-            placeholder="you@example.com"
+            placeholder="collab@entreprise.fr"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             icon={<Mail className="w-5 h-5" />}

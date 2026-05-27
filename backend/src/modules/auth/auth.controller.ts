@@ -3,9 +3,17 @@ import { z } from 'zod';
 import * as authService from './auth.service';
 import { logAction } from '../audit/audit.service';
 import { asyncHandler, successResponse } from '../../utils/helpers';
-import { ValidationError } from '../../utils/errors';
+import { ValidationError, NotFoundError } from '../../utils/errors';
 import { AuthRequest } from '../../middleware/authenticate';
 import { env } from '../../config/env';
+import { UserModel } from '../users/user.model';
+import { DocumentModel } from '../documents/document.model';
+import { DocumentFolderModel } from '../documents/document-folder.model';
+import { DossierModel } from '../dossiers/dossier.model';
+import { PlannerTask } from '../planner/planner.model';
+import { ConversationModel } from '../conversations/conversation.model';
+import * as documentService from '../documents/document.service';
+import { logger } from '../../utils/logger';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -15,10 +23,18 @@ const COOKIE_OPTIONS = {
   path: '/',
 };
 
+const strongPassword = z.string()
+  .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+  .max(128)
+  .refine(
+    (val) => /[a-zA-Z]/.test(val) && /[\d\W]/.test(val),
+    { message: "Le mot de passe doit être sécurisé : au moins 8 caractères, contenant des lettres et des chiffres ou caractères spéciaux." }
+  );
+
 const registerSchema = z.object({
   name: z.string().min(2).max(100).trim(),
   email: z.string().email(),
-  password: z.string().min(8).max(128),
+  password: strongPassword,
 });
 
 const loginSchema = z.object({
@@ -42,7 +58,7 @@ const forgotPasswordSchema = z.object({
 const resetPasswordSchema = z.object({
   email: z.string().email(),
   code: z.string().length(6),
-  newPassword: z.string().min(8).max(128),
+  newPassword: strongPassword,
 });
 
 const verifyResetCodeSchema = z.object({
@@ -52,7 +68,7 @@ const verifyResetCodeSchema = z.object({
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8).max(128),
+  newPassword: strongPassword,
 });
 
 export const register = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
@@ -196,3 +212,49 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response, _next:
   const user = await authService.getMe(req.userId!);
   return successResponse(res, { user });
 });
+
+export const deleteAccount = asyncHandler(async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const userId = req.userId!;
+
+  // 1. Fetch and delete all user documents (this handles OCR files and chunks deletion)
+  const docs = await DocumentModel.find({ ownerId: userId });
+  for (const doc of docs) {
+    try {
+      await documentService.deleteDocument((doc as any)._id.toString(), userId);
+    } catch (err) {
+      logger.error(`Error deleting document ${doc._id} during account deletion:`, err);
+    }
+  }
+
+  // 2. Delete folders
+  await DocumentFolderModel.deleteMany({ ownerId: userId });
+
+  // 3. Delete dossiers
+  await DossierModel.deleteMany({ ownerId: userId });
+
+  // 4. Delete planner tasks
+  await PlannerTask.deleteMany({ userId });
+
+  // 5. Delete conversations
+  await ConversationModel.deleteMany({ ownerId: userId });
+
+  // 6. Delete user account
+  const user = await UserModel.findByIdAndDelete(userId);
+  if (!user) {
+    throw new NotFoundError('User');
+  }
+
+  // 7. Clear authentication cookie
+  res.clearCookie('token', { path: '/' });
+
+  // 8. Log the audit action
+  await logAction({
+    userId,
+    action: 'USER_DELETE_ACCOUNT',
+    resourceType: 'User',
+    resourceId: userId,
+  });
+
+  return successResponse(res, null, 'Account and all associated data deleted successfully');
+});
+

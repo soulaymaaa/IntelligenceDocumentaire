@@ -16,5 +16,6 @@ router.post('/reset-password', authLimiter, authController.resetPassword);
 router.post('/change-password', authenticate, authController.changePassword);
 router.post('/logout', authController.logout);
 router.get('/me', authenticate, authController.getMe);
+router.delete('/delete-account', authenticate, authController.deleteAccount);
 
 export default router;

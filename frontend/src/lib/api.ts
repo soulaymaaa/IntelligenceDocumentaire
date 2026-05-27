@@ -101,6 +101,11 @@ export const authApi = {
     const res = await api.get<ApiResponse<{ user: User }>>('/auth/me');
     return extractData(res).user;
   },
+
+  deleteAccount: async (): Promise<void> => {
+    localStorage.removeItem('auth_token');
+    await api.delete('/auth/delete-account');
+  },
 };
 
 // --- Documents ---
@@ -326,18 +331,56 @@ export const plannerApi = {
     return extractData(res);
   },
 
-  createTask: async (data: { text: string; date: string; reminderAt?: string }) => {
+  getStats: async () => {
+    const res = await api.get<ApiResponse<any>>('/planner/stats');
+    return extractData(res);
+  },
+
+  createTask: async (data: { text: string; date?: string; startDate?: string; endDate?: string; reminderAt?: string; priority?: string; category?: string }) => {
     const res = await api.post<ApiResponse<any>>('/planner', data);
     return extractData(res);
   },
 
-  updateTask: async (id: string, data: { text?: string; completed?: boolean; date?: string; reminderAt?: string | null }) => {
+  updateTask: async (id: string, data: { text?: string; completed?: boolean; date?: string; startDate?: string; endDate?: string; reminderAt?: string | null; priority?: string; category?: string }) => {
     const res = await api.put<ApiResponse<any>>(`/planner/${id}`, data);
     return extractData(res);
   },
 
+  importExcel: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post<ApiResponse<any>>('/planner/import-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+    return extractData(res);
+  },
+
+  downloadTemplate: async () => {
+    const res = await api.get('/planner/template', { responseType: 'blob' });
+    return res.data as Blob;
+  },
+
   deleteTask: async (id: string) => {
     await api.delete(`/planner/${id}`);
+  },
+};
+
+// --- Admin Portal ---
+
+export const adminPortalApi = {
+  getUsers: async (params?: { page?: number; limit?: number; search?: string }): Promise<{ users: User[]; meta: PaginationMeta }> => {
+    const res = await api.get<ApiResponse<{ users: User[]; meta: PaginationMeta }>>('/admin-portal/users', { params });
+    return extractData(res);
+  },
+
+  updateUser: async (id: string, data: { role?: 'user' | 'admin'; isVerified?: boolean }): Promise<{ user: User }> => {
+    const res = await api.put<ApiResponse<{ user: User }>>(`/admin-portal/users/${id}`, data);
+    return extractData(res);
+  },
+
+  deleteUser: async (id: string): Promise<void> => {
+    await api.delete(`/admin-portal/users/${id}`);
   },
 };
 

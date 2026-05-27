@@ -45,14 +45,18 @@ function NewPasswordContent() {
     }
   }, [router]);
 
+  const isPasswordSecure = (pass: string) => {
+    return pass.length >= 8 && /[a-zA-Z]/.test(pass) && /[\d\W]/.test(pass);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (!isPasswordSecure(newPassword)) {
+      setError(copy.auth.passwordMin);
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(copy.settings.password.mismatchError || 'Passwords do not match');
       return;
     }
 
@@ -101,20 +105,25 @@ function NewPasswordContent() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Input
-            label={copy.auth.newPassword}
-            type="password"
-            placeholder="At least 8 characters"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            minLength={8}
-            required
-          />
+          <div>
+            <Input
+              label={copy.auth.newPassword}
+              type="password"
+              placeholder="••••••••"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              minLength={8}
+              required
+            />
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 font-medium leading-relaxed">
+              {copy.auth.passwordHelp}
+            </p>
+          </div>
 
           <Input
             label={copy.auth.confirmPassword}
             type="password"
-            placeholder={copy.auth.repeatNewPassword}
+            placeholder="••••••••"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             minLength={8}

@@ -9,7 +9,7 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string) => Promise<{
     devVerificationCode?: string;
     emailPreviewUrl?: string;
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [refreshUser]);
 
-  const storeFallback = (key: string, value: Record<string, string | boolean | undefined>) => {
+  const storeFallback = (key: string, value: Record<string, any>) => {
     if (typeof window === 'undefined') return;
     sessionStorage.setItem(key, JSON.stringify(value));
   };
@@ -53,7 +53,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (email: string, password: string) => {
     const { user } = await authApi.login({ email, password });
     setUser(user);
-    router.push('/dashboard');
+    // Do NOT redirect here; caller decides where to go based on role
+    return user;
   };
 
   const register = async (name: string, email: string, password: string) => {
@@ -74,8 +75,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // If auto-verify returned a token, log in immediately
     if ((result as any).token) {
       setUser(result.user);
-      router.push('/dashboard');
+      // Caller may redirect; we avoid automatic routing
     } else {
+      // No immediate token, navigate to email verification
       router.push(`/verify-email?${params.toString()}`);
     }
     return result;
@@ -84,7 +86,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const verify = async (email: string, code: string) => {
     const { user } = await authApi.verifyEmail({ email, code });
     setUser(user);
-    router.push('/dashboard');
+    // Caller decides redirect
   };
 
   const logout = async () => {

@@ -79,7 +79,7 @@ export default function DossierPage() {
   const docs = data?.documents || [];
 
   return (
-    <AppLayout>
+    <AppLayout breadcrumbLabel={dossier?.name}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
         <div className="flex items-center gap-3">

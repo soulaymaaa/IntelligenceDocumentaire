@@ -31,12 +31,12 @@ export default function HomePage() {
   ];
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f4f7fd] text-slate-900 dark:bg-[radial-gradient(circle_at_top,_rgba(8,145,178,0.12),_transparent_34%),linear-gradient(180deg,_rgb(2,10,14),_rgb(5,18,24))] dark:text-slate-100">
+    <main className="min-h-screen overflow-hidden bg-surface text-slate-900 dark:bg-[radial-gradient(circle_at_top,_rgba(6,182,212,0.12),_transparent_34%),linear-gradient(180deg,_rgb(2,10,14),_rgb(5,18,24))] dark:text-slate-100">
       <div className="relative w-full px-6 py-8 sm:px-8 lg:px-10 xl:px-14 2xl:px-16">
-        <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.16),_transparent_34%),radial-gradient(circle_at_top_left,_rgba(34,197,94,0.10),_transparent_26%)] dark:bg-[radial-gradient(circle_at_top_right,_rgba(8,145,178,0.15),_transparent_34%),radial-gradient(circle_at_top_left,_rgba(34,197,94,0.08),_transparent_26%),radial-gradient(circle_at_top,_rgba(15,118,110,0.08),_transparent_48%)]" />
+        <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top_right,_rgba(6,182,212,0.16),transparent_34%),radial-gradient(circle_at_top_left,_rgba(34,197,94,0.10),transparent_26%)] dark:bg-[radial-gradient(circle_at_top_right,_rgba(8,145,178,0.15),transparent_34%),radial-gradient(circle_at_top_left,_rgba(34,197,94,0.08),transparent_26%),radial-gradient(circle_at_top,_rgba(15,118,110,0.08),transparent_48%)]" />
 
         <header className="relative z-10 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-1 items-center justify-between rounded-[36px] border border-white/80 bg-white/90 px-6 py-4 shadow-[0_24px_60px_-34px_rgba(59,130,246,0.22)] backdrop-blur dark:border-white/10 dark:bg-slate-950/65 dark:shadow-[0_24px_60px_-34px_rgba(0,0,0,0.45)]">
+          <div className="flex flex-1 items-center justify-between rounded-[36px] border border-white/80 bg-white/90 px-6 py-4 shadow-[0_24px_60px_-34px_rgba(6,182,212,0.22)] backdrop-blur dark:border-white/10 dark:bg-slate-950/65 dark:shadow-[0_24px_60px_-34px_rgba(0,0,0,0.45)]">
             <Link href="/" className="flex min-w-[360px] flex-none items-center gap-4">
               <LogoMark className="h-auto w-[56px] max-w-[56px] shrink-0" />
               <div className="min-w-0 leading-tight">
@@ -52,20 +52,20 @@ export default function HomePage() {
             <div className="flex items-center gap-3">
               {!isLoading && isAuthenticated ? (
                 <Link href="/dashboard">
-                  <Button className="min-w-[180px] justify-center rounded-full px-6">
+                  <Button className="min-w-[180px] justify-center rounded-full px-6 bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:text-white dark:hover:bg-primary-dark/90">
                     {copy.common.dashboard}
                   </Button>
                 </Link>
               ) : (
                 <>
                   <Link href="/login">
-                    <Button variant="secondary" className="min-w-[132px] justify-center rounded-full bg-white">
+                    <Button variant="secondary" className="min-w-[132px] justify-center rounded-full dark:bg-gray-800 dark:text-white">
                       {copy.home.login}
                     </Button>
                   </Link>
-                  <Link href="/register">
+                  <Link href="/login">
                     <Button className="min-w-[170px] justify-center rounded-full">
-                      {copy.home.getStarted}
+                      Commencer
                     </Button>
                   </Link>
                 </>
@@ -74,7 +74,7 @@ export default function HomePage() {
           </div>
 
           <div className="relative z-10 flex items-center justify-end">
-            <div className="flex items-center gap-2 rounded-[28px] border border-white/80 bg-white/92 p-1.5 shadow-[0_24px_44px_-30px_rgba(59,130,246,0.22)] backdrop-blur dark:border-white/10 dark:bg-slate-950/65 dark:shadow-[0_24px_44px_-30px_rgba(0,0,0,0.45)]">
+            <div className="flex items-center gap-2 rounded-[28px] border border-white/80 bg-white/92 p-1.5 shadow-[0_24px_44px_-30px_rgba(6,182,212,0.22)] backdrop-blur dark:border-white/10 dark:bg-slate-950/65 dark:shadow-[0_24px_44px_-30px_rgba(0,0,0,0.45)]">
               <LanguageToggle />
               <div className="h-8 w-px bg-slate-200 dark:bg-white/10" />
               <ThemeToggle />
@@ -89,7 +89,7 @@ export default function HomePage() {
               {copy.home.modernPlatform}
             </div>
 
-            <h1 className="mt-7 max-w-4xl text-[clamp(2.8rem,5.7vw,5rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-[#10295c] dark:text-[#dbeafe]">
+            <h1 className="mt-7 max-w-4xl text-[clamp(2.8rem,5.7vw,5rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-slate-900 dark:text-cyan-100">
               {copy.home.title}
             </h1>
 
@@ -117,21 +117,21 @@ export default function HomePage() {
                     </Button>
                   </Link>
                   <Link href="/documents">
-                    <Button variant="secondary" size="lg" className="rounded-full px-8 bg-white">
+                    <Button variant="secondary" size="lg" className="rounded-full px-8 bg-white dark:bg-gray-800 dark:text-white">
                       {copy.home.myDocuments}
                     </Button>
                   </Link>
                 </>
               ) : (
                 <>
-                  <Link href="/register">
-                    <Button size="lg" className="rounded-full px-10">
-                      {copy.home.primaryCta}
+                  <Link href="/login">
+                    <Button size="lg" className="rounded-full px-10 bg-brand-600 text-white hover:bg-brand-700 shadow-md shadow-brand-500/20">
+                      Commencer
                     </Button>
                   </Link>
-                  <Link href="/login">
-                    <Button variant="secondary" size="lg" className="rounded-full border-white bg-white px-10">
-                      {copy.home.secondaryCta}
+                  <Link href="/register">
+                    <Button variant="secondary" size="lg" className="rounded-full border-white bg-white px-10 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
+                      Créer un compte
                     </Button>
                   </Link>
                 </>
@@ -166,8 +166,8 @@ export default function HomePage() {
           <div className="relative flex min-h-[620px] items-center justify-center overflow-visible pr-0 lg:pr-4 xl:pr-10">
 
 
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_68%_72%,rgba(59,130,246,0.08),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(34,197,94,0.05),transparent_18%)] dark:bg-[radial-gradient(circle_at_68%_72%,rgba(59,130,246,0.16),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(34,197,94,0.08),transparent_18%)]" />
-            <div className="absolute bottom-[9%] right-[11%] h-[190px] w-[190px] rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.22)_0%,rgba(59,130,246,0.12)_45%,rgba(59,130,246,0)_72%)] blur-2xl" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_68%_72%,rgba(6,182,212,0.08),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(34,197,94,0.05),transparent_18%)] dark:bg-[radial-gradient(circle_at_68%_72%,rgba(6,182,212,0.16),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(34,197,94,0.08),transparent_18%)]" />
+            <div className="absolute bottom-[9%] right-[11%] h-[190px] w-[190px] rounded-full bg-[radial-gradient(circle,rgba(6,182,212,0.22)_0%,rgba(6,182,212,0.12)_45%,rgba(6,182,212,0)_72%)] blur-2xl" />
             <div className="absolute bottom-[14%] right-[20%] h-[120px] w-[120px] rounded-full border-[14px] border-white/60" />
 
             <div className="absolute right-[6%] top-[15%] z-30 hidden rounded-[24px] border border-white/85 bg-white/95 px-4 py-4 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.22)] backdrop-blur sm:block dark:border-white/10 dark:bg-slate-950/75 dark:shadow-[0_20px_48px_-34px_rgba(0,0,0,0.5)]">
@@ -186,7 +186,7 @@ export default function HomePage() {
             </div>
 
             <div className="absolute right-[10%] top-[42%] z-30 rounded-[22px] border border-white/80 bg-white p-4 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.2)] dark:border-white/10 dark:bg-slate-950/75 dark:shadow-[0_20px_48px_-34px_rgba(0,0,0,0.5)]">
-              <ShieldCheck className="h-8 w-8 text-blue-500" />
+              <ShieldCheck className="h-8 w-8 text-cyan-500" />
             </div>
 
             <div className="absolute left-[12%] top-[28%] z-20 rounded-[18px] border border-white/85 bg-white/96 px-4 py-3 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.22)] backdrop-blur dark:border-white/10 dark:bg-slate-950/80 dark:shadow-[0_20px_48px_-34px_rgba(0,0,0,0.5)]">
@@ -273,38 +273,35 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-5xl overflow-hidden rounded-[36px] border border-surface-200 bg-slate-950 px-8 py-10 text-white shadow-xl shadow-slate-900/20 dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(2,6,23,0.96),rgba(3,24,32,0.96))]">
+        <section className="hero-banner mx-auto mt-20 max-w-5xl overflow-hidden rounded-[36px] border border-surface-200 px-8 py-10 shadow-xl shadow-slate-900/10 dark:shadow-black/20">
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-cyan-300/80">DocIntel</p>
-              <h2 className="mt-3 text-3xl font-extrabold tracking-tight">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-600 dark:text-cyan-300/80">DocIntel</p>
+              <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                 {copy.home.ctaTitle}
               </h2>
-              <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-slate-300">
+              <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
                 {copy.home.ctaDescription}
               </p>
             </div>
 
-            <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-sm dark:border-cyan-400/10 dark:bg-white/5">
-              <div className="space-y-3 text-sm font-medium text-slate-200">
-                <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
-                  <span>{copy.home.features[0].title}</span>
-                  <span className="text-cyan-300">Ready</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
-                  <span>{copy.home.features[1].title}</span>
-                  <span className="text-cyan-300">Indexed</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
-                  <span>{copy.home.features[2].title}</span>
-                  <span className="text-cyan-300">Live</span>
-                </div>
-              </div>
+            <div className="rounded-[28px] border border-surface-200 bg-white/80 p-5 backdrop-blur-sm dark:border-cyan-400/10 dark:bg-white/5">
+              <ul className="space-y-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                {copy.home.features.slice(0, 3).map((feature) => (
+                  <li key={feature.title} className="flex items-start gap-3 rounded-2xl border border-surface-200 bg-surface-50/80 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-white">{feature.title}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{feature.description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
 
               <div className="mt-6 flex flex-wrap items-center gap-4">
-                <Link href={isAuthenticated ? '/dashboard' : '/register'}>
-                  <Button size="lg">
-                    {isAuthenticated ? copy.home.accessDashboard : copy.home.tryNow}
+                <Link href={isAuthenticated ? '/dashboard' : '/login'}>
+                  <Button size="lg" className="bg-brand-600 text-white hover:bg-brand-700">
+                    {isAuthenticated ? copy.home.accessDashboard : 'Commencer'}
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>

@@ -920,6 +920,7 @@ const isSpreadsheetDocument = (doc?: Document | null) => {
 const PIES = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
 
 const SpreadsheetPreview = ({ doc }: { doc: Document }) => {
+  const { copy } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasAutoLoadedRef = useRef(false);
@@ -997,11 +998,11 @@ const SpreadsheetPreview = ({ doc }: { doc: Document }) => {
   }, [workbook, sheetName]);
 
   return (
-    <div className="rounded-2xl border border-surface-200 bg-slate-950 text-white overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-white/10">
+    <div className="overflow-hidden rounded-2xl border border-surface-200 bg-white text-slate-900 dark:bg-slate-950 dark:text-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-surface-200 dark:border-white/10">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/50">Aperçu du tableur</p>
-          <p className="mt-1 text-sm font-bold text-white/80 truncate">{doc.originalName}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 dark:text-white/50">{copy.documents.detail.actions.spreadsheetPreview}</p>
+          <p className="mt-1 text-sm font-bold text-slate-700 dark:text-white/80 truncate">{doc.originalName}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -1009,7 +1010,7 @@ const SpreadsheetPreview = ({ doc }: { doc: Document }) => {
             <select
               value={sheetName}
               onChange={(e) => setSheetName(e.target.value)}
-              className="h-10 max-w-[220px] appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-wider text-white/80 outline-none"
+              className="h-10 max-w-[220px] appearance-none rounded-xl border border-surface-200 dark:border-white/10 bg-white dark:bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-white/80 outline-none"
             >
               {workbook.SheetNames.map((n) => (
                 <option key={n} value={n}>
@@ -1022,19 +1023,18 @@ const SpreadsheetPreview = ({ doc }: { doc: Document }) => {
           <Button
             variant="secondary"
             size="sm"
-            className="border-white/10 bg-white/10 text-white hover:bg-white/20"
             onClick={loadWorkbook}
             isLoading={isLoading}
             disabled={!fileUrl || isLoading}
           >
-            Recharger
+            {copy.documents.detail.actions.reload}
           </Button>
         </div>
       </div>
 
       {error && (
         <div className="px-5 py-4">
-          <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">
+          <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-600 dark:text-red-200">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             {error}
           </div>
@@ -1044,16 +1044,16 @@ const SpreadsheetPreview = ({ doc }: { doc: Document }) => {
       {isLoading && !rows.length && (
         <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 px-6 py-10">
           <Spinner size="lg" />
-          <p className="text-sm font-bold text-white/70">Chargement du tableur…</p>
+          <p className="text-sm font-bold text-slate-500 dark:text-white/70">{copy.documents.detail.actions.loadingSpreadsheet}</p>
         </div>
       )}
 
       {!isLoading && !error && !rows.length && (
         <div className="flex min-h-[420px] flex-col items-center justify-center gap-2 px-6 py-10 text-center">
           <AlertTriangle className="w-8 h-8 text-amber-400" />
-          <p className="text-sm font-bold text-white/80">Aucune donnée trouvée</p>
-          <p className="text-sm font-medium text-white/50">
-            Vérifie la feuille sélectionnée ou le format du fichier.
+          <p className="text-sm font-bold text-slate-700 dark:text-white/80">{copy.documents.detail.actions.noData}</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-white/50">
+            {copy.documents.detail.actions.noDataHelper}
           </p>
         </div>
       )}
@@ -1061,12 +1061,12 @@ const SpreadsheetPreview = ({ doc }: { doc: Document }) => {
       {!!rows.length && (
         <div className="max-h-[680px] overflow-auto">
           <table className="min-w-full text-sm">
-            <thead className="sticky top-0 bg-slate-950/95 backdrop-blur border-b border-white/10">
+            <thead className="sticky top-0 border-b border-surface-200 dark:border-white/10 bg-surface-100/95 dark:bg-slate-950/95 backdrop-blur">
               <tr>
                 {headers.map((h) => (
                   <th
                     key={h}
-                    className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest text-white/60 whitespace-nowrap"
+                    className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-white/60 whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -1075,11 +1075,11 @@ const SpreadsheetPreview = ({ doc }: { doc: Document }) => {
             </thead>
             <tbody>
               {rows.map((r, idx) => (
-                <tr key={idx} className="border-b border-white/5 hover:bg-white/5">
+                <tr key={idx} className="border-b border-surface-200 dark:border-white/5 hover:bg-surface-50 dark:hover:bg-white/5">
                   {headers.map((h) => (
-                    <td key={h} className="px-5 py-3 text-white/85 whitespace-nowrap">
+                    <td key={h} className="px-5 py-3 text-slate-700 dark:text-white/85 whitespace-nowrap">
                       {r[h] === null || r[h] === undefined || r[h] === '' ? (
-                        <span className="text-white/30">—</span>
+                        <span className="text-slate-300 dark:text-white/30">—</span>
                       ) : (
                         String(r[h])
                       )}
@@ -1092,8 +1092,8 @@ const SpreadsheetPreview = ({ doc }: { doc: Document }) => {
         </div>
       )}
 
-      <div className="px-5 py-3 border-t border-white/10 text-[11px] font-black uppercase tracking-widest text-white/40">
-        Lignes: {rows.length.toLocaleString()}
+      <div className="px-5 py-3 border-t border-surface-200 dark:border-white/10 text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-white/40">
+        {copy.documents.detail.actions.rows}: {rows.length.toLocaleString()}
       </div>
     </div>
   );
@@ -1246,7 +1246,7 @@ const TranslationSpreadsheetTable = ({
 
   const renderCell = (value: string) => {
     const v = (value || '').trim();
-    if (!v) return <span className="text-white/30">—</span>;
+    if (!v) return <span className="text-slate-300 dark:text-white/30">—</span>;
 
     const isLink = /^https?:\/\//i.test(v);
     if (isLink) {
@@ -1255,7 +1255,7 @@ const TranslationSpreadsheetTable = ({
           href={v}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2 break-all"
+          className="text-brand-600 dark:text-cyan-300 hover:text-brand-700 dark:hover:text-cyan-200 underline underline-offset-2 break-all"
         >
           {v}
         </a>
@@ -1266,7 +1266,7 @@ const TranslationSpreadsheetTable = ({
   };
 
   return (
-    <div className="max-h-[600px] overflow-auto rounded-2xl border border-surface-200 bg-slate-950 text-white">
+    <div className="max-h-[600px] overflow-auto rounded-2xl border border-surface-200 bg-white text-slate-900 dark:bg-slate-950 dark:text-white">
       <table className="min-w-full text-sm table-fixed">
         <colgroup>
           {Array.from({ length: maxCols }).map((_, i) => {
@@ -1274,12 +1274,12 @@ const TranslationSpreadsheetTable = ({
             return <col key={i} style={{ width: roleWidths[role] || roleWidths.default }} />;
           })}
         </colgroup>
-        <thead className="sticky top-0 bg-slate-950/95 backdrop-blur border-b border-white/10">
+        <thead className="sticky top-0 bg-surface-100/95 dark:bg-slate-950/95 backdrop-blur border-b border-surface-200 dark:border-white/10">
           <tr>
             {headers.map((h, i) => (
               <th
                 key={`${h}-${i}`}
-                className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest text-white/60 whitespace-nowrap"
+                className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-white/60 whitespace-nowrap"
               >
                 {h}
               </th>
@@ -1290,8 +1290,8 @@ const TranslationSpreadsheetTable = ({
           {rows.map((r, idx) => (
             <tr
               key={idx}
-              className={`border-b border-white/5 hover:bg-white/5 ${
-                idx % 2 === 0 ? 'bg-white/[0.02]' : 'bg-transparent'
+              className={`border-b border-surface-200 dark:border-white/5 hover:bg-surface-50 dark:hover:bg-white/5 ${
+                idx % 2 === 0 ? 'bg-surface-50/50 dark:bg-white/[0.02]' : 'bg-transparent'
               }`}
             >
               {Array.from({ length: maxCols }).map((_, c) => {
@@ -1302,8 +1302,8 @@ const TranslationSpreadsheetTable = ({
                   <td
                     key={c}
                     className={[
-                      'px-5 py-3 text-white/85 align-top',
-                      role === 'index' ? 'text-white/60 font-black' : '',
+                      'px-5 py-3 text-slate-700 dark:text-white/85 align-top',
+                      role === 'index' ? 'text-slate-400 dark:text-white/60 font-black' : '',
                       role === 'price' ? 'text-right font-black whitespace-nowrap' : '',
                       role === 'name' ? 'font-bold' : '',
                     ].join(' ')}
@@ -1312,13 +1312,13 @@ const TranslationSpreadsheetTable = ({
                       (() => {
                         const url = cell.trim();
                         const isUrl = /^https?:\/\//i.test(url);
-                        if (!isUrl) return <span className="text-white/30">—</span>;
+                        if (!isUrl) return <span className="text-slate-300 dark:text-white/30">—</span>;
                         return (
                           <a href={url} target="_blank" rel="noopener noreferrer" className="block">
                             <img
                               src={url}
                               alt=""
-                              className="h-10 w-10 rounded-lg object-cover border border-white/10 bg-white/5"
+                              className="h-10 w-10 rounded-lg object-cover border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-white/5"
                               loading="lazy"
                             />
                           </a>
@@ -2023,30 +2023,24 @@ const summaryData = useMemo<SummaryPayload>(
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const d = copy.documents.detail;
   const TABS = [
-    { id: 'overview', label: 'Aperçu', icon: BookOpen },
-    { id: 'highlights', label: 'Passages', icon: Highlighter },
-    { id: 'summary', label: 'Résumés', icon: Sparkles },
-    { id: 'mind_map', label: 'Carte mentale', icon: GitBranch },
-    ...(isSpreadsheet ? ([{ id: 'charts', label: 'Graphiques', icon: BarChart3 }] as const) : []),
-    { id: 'translation', label: 'Traduction', icon: Languages },
-    { id: 'chat', label: 'Chat IA', icon: FileSearch },
+    { id: 'overview', label: d.tabs.overview, icon: BookOpen },
+    { id: 'highlights', label: d.tabs.highlights, icon: Highlighter },
+    { id: 'summary', label: d.tabs.summary, icon: Sparkles },
+    { id: 'mind_map', label: d.tabs.mindMap, icon: GitBranch },
+    ...(isSpreadsheet ? ([{ id: 'charts', label: d.tabs.charts, icon: BarChart3 }] as const) : []),
+    { id: 'translation', label: d.tabs.translate, icon: Languages },
+    { id: 'chat', label: d.tabs.chat, icon: FileSearch },
   ] as const;
 
   return (
-    <AppLayout>
+    <AppLayout breadcrumbLabel={doc.originalName}>
       <div className="space-y-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push('/documents')}>
-            <ArrowLeft className="w-4 h-4" />
-            Documents
-          </Button>
-          <span className="text-slate-300 dark:text-slate-600">/</span>
-          <span className="truncate max-w-[260px] text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {doc.originalName}
-          </span>
-        </div>
+        <Button variant="ghost" size="sm" onClick={() => router.push('/documents')} className="-mt-2 mb-2 w-fit">
+          <ArrowLeft className="w-4 h-4" />
+          {copy.common.documents}
+        </Button>
 
         {/* Hero card */}
         <Card className="overflow-hidden border-surface-200 bg-gradient-to-br from-white via-surface-50 to-brand-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-brand-950/20">
@@ -2054,7 +2048,7 @@ const summaryData = useMemo<SummaryPayload>(
             {/* Left: meta + actions */}
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.25em] text-brand-500">
-                Intelligence Documentaire
+                {copy.common.platformName}
               </p>
               <div className="flex items-center gap-3 mt-2">
                 {isEditingName ? (
@@ -2081,7 +2075,7 @@ const summaryData = useMemo<SummaryPayload>(
                         className="h-11"
                       >
                         <Check className="w-4 h-4" />
-                        Enregistrer
+                        {d.actions.save}
                       </Button>
                       <Button
                         size="sm"
@@ -2093,7 +2087,7 @@ const summaryData = useMemo<SummaryPayload>(
                         className="h-11"
                       >
                         <X className="w-4 h-4" />
-                        Annuler
+                        {d.actions.cancel}
                       </Button>
                     </div>
                   </div>
@@ -2111,10 +2105,7 @@ const summaryData = useMemo<SummaryPayload>(
                     </button>
                   </div>
                 )}
-                <QRTrigger 
-                  title="Mobile View" 
-                  description="Continue reading this document on your phone. Perfect for reading on the go!"
-                />
+                <QRTrigger />
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <StatusBadge status={doc.status} />
@@ -2139,7 +2130,7 @@ const summaryData = useMemo<SummaryPayload>(
                   isLoading={ocrMutation.isPending}
                 >
                   <Scan className="w-4 h-4" />
-                  OCR
+                  {d.actions.ocr}
                 </Button>
                 <Button
                   variant="secondary"
@@ -2148,7 +2139,7 @@ const summaryData = useMemo<SummaryPayload>(
                   isLoading={reindexMutation.isPending}
                 >
                   <RefreshCw className="w-4 h-4" />
-                  Réindexer
+                  {d.actions.reindex}
                 </Button>
                 {!doc.archived ? (
                   <Button
@@ -2158,7 +2149,7 @@ const summaryData = useMemo<SummaryPayload>(
                     isLoading={archiveMutation.isPending}
                   >
                     <Archive className="w-4 h-4" />
-                    Archiver
+                    {d.actions.archive}
                   </Button>
                 ) : (
                   <Button
@@ -2168,7 +2159,7 @@ const summaryData = useMemo<SummaryPayload>(
                     isLoading={restoreMutation.isPending}
                   >
                     <Undo2 className="w-4 h-4" />
-                    Restaurer
+                    {d.actions.restore}
                   </Button>
                 )}
                 <Button
@@ -2177,7 +2168,7 @@ const summaryData = useMemo<SummaryPayload>(
                   isLoading={summaryMutation.isPending}
                 >
                   <Sparkles className="w-4 h-4" />
-                  Générer résumés
+                  {d.actions.generateSummaries}
                 </Button>
                 <Button
                   variant="danger"
@@ -2186,7 +2177,7 @@ const summaryData = useMemo<SummaryPayload>(
                   className="shadow-sm"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Supprimer
+                  {d.actions.delete}
                 </Button>
               </div>
             </div>
@@ -2195,7 +2186,7 @@ const summaryData = useMemo<SummaryPayload>(
             <div className="space-y-4">
               <Card className="border-surface-200 bg-white/80 dark:bg-slate-800/60 p-5">
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
-                  État IA
+                  {d.actions.aiState}
                 </p>
                 <div className="mt-4 space-y-3">
                   {[
@@ -2221,12 +2212,12 @@ const summaryData = useMemo<SummaryPayload>(
               </Card>
 
               {(originalViewerUrl || originalFileUrl || previewUrl) && (
-                <Card className="border-surface-200 bg-slate-950 text-white p-5">
-                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/50">
-                    Document original
+                <Card className="border-surface-200 bg-slate-100 p-5 text-slate-900 dark:bg-slate-950 dark:text-white">
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-white/50">
+                    {d.actions.originalTitle}
                   </p>
-                  <p className="mt-2 text-sm font-medium text-white/70 leading-6">
-                    Ouvrir le fichier source et naviguer vers les pages citées.
+                  <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-white/70">
+                    {d.actions.originalHelper}
                   </p>
                   <a
                     href={isSpreadsheet ? (originalViewerUrl || '#') : (originalFileUrl || previewUrl || '#')}
@@ -2237,10 +2228,10 @@ const summaryData = useMemo<SummaryPayload>(
                     <Button
                       variant="secondary"
                       size="sm"
-                      className="mt-4 border-white/10 bg-white/10 text-white hover:bg-white/20"
+                      className="mt-4 border-surface-200 bg-white text-slate-900 hover:bg-surface-50 dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      Ouvrir l'original
+                      {d.actions.openOriginal}
                     </Button>
                   </a>
                 </Card>
@@ -2272,7 +2263,7 @@ const summaryData = useMemo<SummaryPayload>(
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="border-surface-200">
               <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-                Aperçu du document
+                {d.overview.title}
               </h2>
               <div className="mt-4">
                 {isSpreadsheet ? (
@@ -2284,8 +2275,8 @@ const summaryData = useMemo<SummaryPayload>(
                 ) : doc.mimeType === 'application/pdf' && previewUrl ? (
                   <PdfPreview url={previewUrl} originalName={doc.originalName} />
                 ) : (
-                  <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-surface-200 bg-slate-50 text-sm font-medium text-slate-400">
-                    Aperçu inline disponible pour les PDF, images et documents Word.
+                  <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-surface-200 bg-slate-50 dark:bg-slate-900/50 text-sm font-medium text-slate-400">
+                    {d.actions.inlinePreview}
                   </div>
                 )}
               </div>
@@ -2293,12 +2284,12 @@ const summaryData = useMemo<SummaryPayload>(
 
             <Card className="border-surface-200">
               <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-                Dernières preuves IA
+                {d.overview.aiEvidence}
               </h2>
               <div className="mt-4 space-y-3">
                 {!activeAssistantMessage?.sources?.length ? (
                   <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-center text-sm font-medium text-slate-400">
-                    Posez une question dans l'onglet <strong>Chat IA</strong> pour générer des preuves avec sources.
+                    {d.actions.aiEvidenceNoChat}
                   </div>
                 ) : (
                   activeAssistantMessage.sources.map((source, i) => (
@@ -2341,10 +2332,10 @@ const summaryData = useMemo<SummaryPayload>(
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-                  Passages pertinents
+                  {d.highlights.title}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Extraits mis en évidence à partir de la dernière réponse de l'assistant.
+                  {d.highlights.description}
                 </p>
               </div>
               {activeAssistantMessage?.sources?.[0]?.pageNumber && (
@@ -2354,7 +2345,7 @@ const summaryData = useMemo<SummaryPayload>(
                   onClick={() => openSourcePage(activeAssistantMessage.sources?.[0]?.pageNumber)}
                 >
                   <ExternalLink className="w-4 h-4" />
-                  Page citée
+                  {d.actions.citedPage}
                 </Button>
               )}
             </div>
@@ -2363,7 +2354,7 @@ const summaryData = useMemo<SummaryPayload>(
               <div className="space-y-3">
                 {!activeAssistantMessage?.highlights?.length ? (
                   <div className="rounded-2xl border border-dashed border-surface-200 bg-surface-50 px-4 py-8 text-sm text-center font-medium text-slate-400">
-                    Aucun passage disponible. Posez d'abord une question dans Chat IA.
+                    {d.actions.noPassages}
                   </div>
                 ) : (
                   activeAssistantMessage.highlights.map((highlight, i) => (

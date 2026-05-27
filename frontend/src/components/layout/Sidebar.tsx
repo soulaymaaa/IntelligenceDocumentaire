@@ -84,19 +84,15 @@ export const Sidebar = ({
 
   const startResizing = (event: React.PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
-
     const initialX = event.clientX;
     const initialWidth = width;
     const originalUserSelect = document.body.style.userSelect;
     const originalCursor = document.body.style.cursor;
-
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'col-resize';
-
     const handlePointerMove = (moveEvent: PointerEvent) => {
       onResize(clampSidebarWidth(initialWidth + moveEvent.clientX - initialX));
     };
-
     const stopResizing = () => {
       document.body.style.userSelect = originalUserSelect;
       document.body.style.cursor = originalCursor;
@@ -104,7 +100,6 @@ export const Sidebar = ({
       window.removeEventListener('pointerup', stopResizing);
       window.removeEventListener('pointercancel', stopResizing);
     };
-
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', stopResizing);
     window.addEventListener('pointercancel', stopResizing);
@@ -113,8 +108,7 @@ export const Sidebar = ({
   const resetWidth = () => onResize(240);
 
   return (
-    <aside
-      className="fixed left-0 top-0 z-30 flex h-full flex-col border-r border-surface-200 bg-card transition-colors"
+    <aside className="fixed left-0 top-0 z-30 h-screen flex flex-col border-r border-surface-200 bg-card transition-colors"
       style={{ width }}
     >
       <div className={cn('border-b border-surface-200', isCompact ? 'px-2 py-4' : 'px-4 py-4')}>
@@ -213,10 +207,7 @@ export const Sidebar = ({
                       : 'text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50/50 dark:hover:bg-brand-500/5'
                   )}
                 >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: dossier.color }}
-                  />
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: dossier.color }} />
                   <span className="flex-1 truncate">{dossier.name}</span>
                   <button
                     onClick={(e) => handleDeleteDossier(e, dossier._id)}
@@ -228,11 +219,8 @@ export const Sidebar = ({
                 </Link>
               );
             })}
-
             {dossiers.length === 0 && !creating && (
-              <p className="px-3.5 py-2 text-[11px] text-slate-400 dark:text-slate-600 italic">
-                {copy.common.newDossier}…
-              </p>
+              <p className="px-3.5 py-2 text-[11px] text-slate-400 dark:text-slate-600 italic">{copy.common.newDossier}…</p>
             )}
           </div>
         </div>
@@ -277,7 +265,6 @@ export const Sidebar = ({
         onDoubleClick={resetWidth}
         className="absolute right-[-3px] top-0 h-full w-1.5 cursor-col-resize outline-none transition-colors hover:bg-brand-500/40 focus-visible:bg-brand-500/50"
       />
-
     </aside>
   );
 };

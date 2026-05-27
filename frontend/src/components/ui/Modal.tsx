@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './Button';
@@ -14,6 +15,13 @@ interface ModalProps {
 }
 
 export const Modal = ({ isOpen, onClose, title, children, className }: ModalProps) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -23,32 +31,36 @@ export const Modal = ({ isOpen, onClose, title, children, className }: ModalProp
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm dark:bg-slate-950/50"
         onClick={onClose}
+        aria-hidden
       />
-      {/* Panel */}
-      <div className={cn(
-        'relative glass rounded-2xl shadow-xl w-full max-w-lg animate-slide-up border border-slate-200',
-        className
-      )}>
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+      <div
+        className={cn(
+          'relative glass w-full max-w-lg animate-slide-up rounded-2xl border border-surface-200 shadow-xl',
+          className
+        )}
+      >
+        <div className="flex items-center justify-between border-b border-surface-200 p-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+            className="rounded-xl p-2 text-slate-400 transition-all hover:bg-surface-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         <div className="p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -68,8 +80,8 @@ export const ConfirmModal = ({
   confirmLabel = 'Confirm', isLoading, danger = false,
 }: ConfirmModalProps) => (
   <Modal isOpen={isOpen} onClose={onClose} title={title} className="max-w-md">
-    <p className="text-slate-600 text-sm leading-relaxed mb-8">{message}</p>
-    <div className="flex gap-3 justify-end">
+    <p className="mb-8 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{message}</p>
+    <div className="flex justify-end gap-3">
       <Button variant="secondary" onClick={onClose} disabled={isLoading}>
         Cancel
       </Button>

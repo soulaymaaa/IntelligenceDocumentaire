@@ -6,13 +6,17 @@ import {
   Activity,
   ArrowRight,
   Brain,
+  Calendar,
   CheckCircle,
   Clock,
   FileText,
   MessageSquareText,
+  Plus,
+  Search,
   Sparkles,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { AppBrand } from '@/components/branding/AppBrand';
 import { Card } from '@/components/ui/Card';
 import { SkeletonCard } from '@/components/ui/Spinner';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -71,31 +75,87 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="space-y-8">
-        <Card className="border-surface-200 bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 text-white">
+        <Card className="hero-banner border-surface-200">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-200/70">{copy.dashboard.controlTower}</p>
-              <h1 className="mt-2 text-4xl font-extrabold tracking-tight">{copy.dashboard.aiDashboard}</h1>
-              <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-slate-300">
-                {copy.dashboard.description}
-              </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+              <AppBrand
+                name={copy.common.platformName}
+                subtitle={copy.common.platformSub}
+                logoClassName="w-14 max-w-14"
+              />
+              <div className="min-w-0">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-600/80 dark:text-brand-200/70">
+                  {copy.dashboard.controlTower}
+                </p>
+                <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+                  {copy.dashboard.aiDashboard}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+                  {copy.dashboard.description}
+                </p>
+              </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">{copy.dashboard.queries}</p>
+              <div className="hero-stat-pill rounded-2xl px-4 py-4">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] opacity-70">{copy.dashboard.queries}</p>
                 <p className="mt-2 text-2xl font-extrabold">{stats?.totalQueries || 0}</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">{copy.dashboard.summaries}</p>
+              <div className="hero-stat-pill rounded-2xl px-4 py-4">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] opacity-70">{copy.dashboard.summaries}</p>
                 <p className="mt-2 text-2xl font-extrabold">{stats?.summariesGenerated || 0}</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">{copy.dashboard.avgRelevance}</p>
+              <div className="hero-stat-pill rounded-2xl px-4 py-4">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] opacity-70">{copy.dashboard.avgRelevance}</p>
                 <p className="mt-2 text-2xl font-extrabold">{stats?.averageRelevanceScore || 0}%</p>
               </div>
             </div>
           </div>
         </Card>
+
+        <div>
+          <p className="mb-4 text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{copy.dashboard.quickActions}</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Link
+              href="/documents"
+              className="group flex items-center gap-4 rounded-2xl border border-surface-200 bg-card p-5 shadow-card transition-all hover:border-brand-300 hover:shadow-card-hover"
+            >
+              <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-3 text-brand-600">
+                <Plus className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{copy.dashboard.quickUpload}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.quickUploadHelper}</p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-600" />
+            </Link>
+            <Link
+              href="/search"
+              className="group flex items-center gap-4 rounded-2xl border border-surface-200 bg-card p-5 shadow-card transition-all hover:border-brand-300 hover:shadow-card-hover"
+            >
+              <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-3 text-brand-600">
+                <Search className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{copy.dashboard.quickSearch}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.quickSearchHelper}</p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-600" />
+            </Link>
+            <Link
+              href="/planner"
+              className="group flex items-center gap-4 rounded-2xl border border-surface-200 bg-card p-5 shadow-card transition-all hover:border-brand-300 hover:shadow-card-hover"
+            >
+              <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-3 text-brand-600">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{copy.dashboard.quickPlanner}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.quickPlannerHelper}</p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-600" />
+            </Link>
+          </div>
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={FileText} label={copy.dashboard.stats.documents} value={stats?.total || 0} helper={copy.dashboard.stats.documentsHelper} />

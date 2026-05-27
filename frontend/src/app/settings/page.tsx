@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { CheckCircle2, KeyRound, Mail, ShieldCheck, User2 } from 'lucide-react';
+import { CheckCircle2, KeyRound, Mail, ShieldCheck, User2, Trash2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ConfirmModal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
 import { authApi } from '@/lib/api';
 import { getApiErrorCode, getErrorMessage } from '@/lib/utils';
@@ -15,11 +17,31 @@ import { useLanguage } from '@/providers/LanguageProvider';
 export default function SettingsPage() {
   const { copy } = useLanguage();
   const { user } = useAuth();
+  const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: authApi.deleteAccount,
+    onSuccess: () => {
+      alert(copy.settings.deleteAccount.success);
+      router.push('/portal/login');
+    },
+    onError: (err) => {
+      setDeleteError(getErrorMessage(err));
+    },
+  });
+
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    await deleteAccountMutation.mutateAsync();
+  };
 
   const changePasswordMutation = useMutation({
     mutationFn: authApi.changePassword,
@@ -41,7 +63,11 @@ export default function SettingsPage() {
     setError('');
     setMessage('');
 
-    if (newPassword.length < 8) {
+    const isPasswordSecure = (pass: string) => {
+      return pass.length >= 8 && /[a-zA-Z]/.test(pass) && /[\d\W]/.test(pass);
+    };
+
+    if (!isPasswordSecure(newPassword)) {
       setError(copy.settings.password.minLengthError);
       return;
     }
@@ -57,10 +83,10 @@ export default function SettingsPage() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-6xl space-y-8">
-        <Card className="border-surface-200 bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 text-white">
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-200/70">{copy.settings.accountCenter}</p>
-          <h1 className="mt-2 text-4xl font-extrabold tracking-tight">{copy.settings.title}</h1>
-          <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-slate-300">
+        <Card className="hero-banner border-surface-200">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-600/80 dark:text-brand-200/70">{copy.settings.accountCenter}</p>
+          <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">{copy.settings.title}</h1>
+          <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
             {copy.settings.description}
           </p>
         </Card>
@@ -118,14 +144,53 @@ export default function SettingsPage() {
                     <div className="flex-1">
                       <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{label}</p>
                     </div>
-                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-emerald-600">
+                    <span className="pointer-events-none rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-emerald-600">
                       {value}
                     </span>
                   </div>
                 ))}
               </div>
             </Card>
+
+            <Card className="border-red-200 dark:border-red-500/20 bg-red-500/5">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-650 dark:text-red-400">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-extrabold tracking-tight text-red-600 dark:text-red-400">{copy.settings.deleteAccount.title}</h2>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.settings.deleteAccount.subtitle}</p>
+                </div>
+              </div>
+
+              {deleteError && (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm font-bold text-red-600">
+                  {deleteError}
+                </div>
+              )}
+
+              <div className="mt-6">
+                <Button
+                  variant="danger"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="h-12 px-6 font-bold"
+                >
+                  {copy.settings.deleteAccount.button}
+                </Button>
+              </div>
+            </Card>
           </div>
+
+          <ConfirmModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={handleDeleteAccount}
+            title={copy.settings.deleteAccount.confirmTitle}
+            message={copy.settings.deleteAccount.confirmMessage}
+            confirmLabel={copy.settings.deleteAccount.confirmButton}
+            isLoading={deleteAccountMutation.isPending}
+            danger
+          />
 
           <Card className="border-surface-200">
             <div className="flex items-center gap-3">
@@ -147,15 +212,21 @@ export default function SettingsPage() {
                 allowPasswordToggle
                 required
               />
-              <Input
-                label={copy.settings.password.new}
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                allowPasswordToggle
-                required
-                minLength={8}
-              />
+              <div>
+                <Input
+                  label={copy.settings.password.new}
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  allowPasswordToggle
+                  required
+                  minLength={8}
+                  placeholder="••••••••"
+                />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 font-medium leading-relaxed">
+                  {copy.auth.passwordHelp}
+                </p>
+              </div>
               <Input
                 label={copy.settings.password.confirm}
                 type="password"
@@ -164,6 +235,7 @@ export default function SettingsPage() {
                 allowPasswordToggle
                 required
                 minLength={8}
+                placeholder="••••••••"
               />
 
               {error && (

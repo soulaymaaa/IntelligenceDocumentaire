@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Copy, Check, Smartphone, Link as LinkIcon } from 'lucide-react';
+import { Copy, Check, Link as LinkIcon, Smartphone } from 'lucide-react';
 import { Modal } from './Modal';
-import { Button } from './Button';
-import { cn } from '@/lib/utils';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 interface QRCodeModalProps {
   isOpen: boolean;
@@ -19,10 +18,14 @@ export const QRCodeModal = ({
   isOpen,
   onClose,
   url,
-  title = 'Mobile Access',
-  description = 'Scan this code with your phone to open this page instantly.',
+  title,
+  description,
 }: QRCodeModalProps) => {
+  const { copy } = useLanguage();
   const [copied, setCopied] = useState(false);
+
+  const modalTitle = title ?? copy.qr.title;
+  const modalDescription = description ?? copy.qr.description;
 
   const copyToClipboard = async () => {
     try {
@@ -35,70 +38,45 @@ export const QRCodeModal = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} className="max-w-md overflow-hidden">
-      <div className="flex flex-col items-center gap-6 py-4">
-        {/* QR Code Container */}
-        <div className="relative group">
-          <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="relative p-6 bg-white rounded-3xl border border-slate-100 shadow-2xl shadow-slate-200/50">
-            <QRCodeSVG
-              value={url}
-              size={200}
-              level="H"
-              includeMargin={false}
-              className="rounded-lg"
-              imageSettings={{
-                src: "/icon.svg",
-                x: undefined,
-                y: undefined,
-                height: 40,
-                width: 40,
-                excavate: true,
-              }}
-            />
-          </div>
+    <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} className="max-w-md">
+      <div className="flex flex-col items-center gap-5 py-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/40 dark:border-slate-700 dark:bg-white dark:shadow-black/20">
+          <QRCodeSVG
+            value={url}
+            size={220}
+            level="H"
+            includeMargin
+            bgColor="#ffffff"
+            fgColor="#0f172a"
+            className="rounded-lg"
+          />
         </div>
 
-        {/* Info */}
-        <div className="text-center space-y-2">
-          <p className="text-slate-600 text-sm font-medium leading-relaxed max-w-[280px]">
-            {description}
-          </p>
-        </div>
+        <p className="text-center text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-300 max-w-[300px]">
+          {modalDescription}
+        </p>
 
-        {/* Actions */}
-        <div className="w-full flex flex-col gap-3 pt-4 border-t border-slate-100/50">
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 text-xs font-mono break-all">
-            <LinkIcon className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate flex-1">{url}</span>
+        <div className="w-full space-y-3 border-t border-surface-200 pt-4">
+          <div className="flex items-center gap-2 rounded-xl border border-surface-200 bg-surface-50 p-3 text-xs font-mono text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">
+            <LinkIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">{url}</span>
             <button
+              type="button"
               onClick={copyToClipboard}
-              className="p-1.5 rounded-lg hover:bg-white hover:text-brand-600 transition-all shadow-sm"
-              title="Copy link"
+              className="shrink-0 rounded-lg p-1.5 text-slate-500 transition-all hover:bg-white hover:text-brand-600 dark:hover:bg-slate-700"
+              title={copy.qr.copyLink}
+              aria-label={copy.qr.copyLink}
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-             <div className="flex items-center gap-3 p-4 rounded-2xl bg-brand-50/50 border border-brand-100/50">
-                <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600">
-                   <Smartphone className="w-4 h-4" />
-                </div>
-                <div className="flex flex-col">
-                   <span className="text-[10px] font-bold text-brand-700 uppercase tracking-wider">iOS</span>
-                   <span className="text-[10px] text-brand-600/70 font-medium">Camera App</span>
-                </div>
-             </div>
-             <div className="flex items-center gap-3 p-4 rounded-2xl bg-cyan-50/50 border border-cyan-100/50">
-                <div className="w-8 h-8 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-600">
-                   <Smartphone className="w-4 h-4" />
-                </div>
-                <div className="flex flex-col">
-                   <span className="text-[10px] font-bold text-cyan-700 uppercase tracking-wider">Android</span>
-                   <span className="text-[10px] text-cyan-600/70 font-medium">QR Scanner</span>
-                </div>
-             </div>
+          <div className="space-y-2 rounded-xl border border-brand-100 bg-brand-50/50 px-4 py-3 dark:border-brand-500/20 dark:bg-brand-500/5">
+            <p className="flex items-start gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+              <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
+              {copy.qr.helpScan}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{copy.qr.helpOpen}</p>
           </div>
         </div>
       </div>

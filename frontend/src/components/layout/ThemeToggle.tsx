@@ -26,7 +26,7 @@ export function ThemeToggle() {
   ];
 
   return (
-    <div className="flex items-center gap-1 bg-surface-100 border border-surface-200 p-1 rounded-2xl shadow-sm">
+    <div className="flex items-center gap-1 rounded-2xl border border-surface-200 bg-white/80 p-1 shadow-sm dark:bg-surface-100">
       {themes.map((t) => {
         const Icon = t.icon;
         const isActive = theme === t.id;

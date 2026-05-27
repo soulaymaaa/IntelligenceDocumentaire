@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +16,7 @@ import { LogoMark } from '@/components/branding/LogoMark';
 export default function LoginPage() {
   const { login } = useAuth();
   const { copy } = useLanguage();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<React.ReactNode>('');
@@ -25,7 +27,13 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
     try {
-      await login(email, password);
+      const loggedUser = await login(email, password);
+      // Redirect based on role
+      if (loggedUser?.role === 'admin') {
+        router.push('/portal');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       const msg = getErrorMessage(err);
       if (msg.toLowerCase().includes('verify your email')) {
@@ -96,7 +104,7 @@ export default function LoginPage() {
               label={copy.auth.emailAddress}
               type="email"
               id="email"
-              placeholder="you@example.com"
+              placeholder="collab@entreprise.fr"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               icon={<Mail className="w-4.5 h-4.5" />}

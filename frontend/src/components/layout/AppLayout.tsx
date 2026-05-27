@@ -2,35 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { Sidebar } from './Sidebar';
+
 import { TopBar } from './TopBar';
+import { Breadcrumbs } from './Breadcrumbs';
 import { useAuth } from '@/lib/auth-context';
 import { PageLoader } from '@/components/ui/Spinner';
 import { cn } from '@/lib/utils';
 
-const DEFAULT_SIDEBAR_WIDTH = 240;
-const MIN_SIDEBAR_WIDTH = 80;
-const MAX_SIDEBAR_WIDTH = 380;
-const SIDEBAR_STORAGE_KEY = 'docintel_sidebar_width';
-
-const clampSidebarWidth = (width: number) => Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width));
-
-export const AppLayout = ({ children, minimalTopBar = false }: { children: React.ReactNode, minimalTopBar?: boolean }) => {
+export const AppLayout = ({
+  children,
+  minimalTopBar = false,
+  breadcrumbLabel,
+}: {
+  children: React.ReactNode;
+  minimalTopBar?: boolean;
+  breadcrumbLabel?: string;
+}) => {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
-  const [hasLoadedSidebarWidth, setHasLoadedSidebarWidth] = useState(false);
-
-  useEffect(() => {
-    const storedWidth = Number(localStorage.getItem(SIDEBAR_STORAGE_KEY));
-    if (storedWidth) setSidebarWidth(clampSidebarWidth(storedWidth));
-    setHasLoadedSidebarWidth(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hasLoadedSidebarWidth) return;
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarWidth));
-  }, [hasLoadedSidebarWidth, sidebarWidth]);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -42,15 +34,22 @@ export const AppLayout = ({ children, minimalTopBar = false }: { children: React
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="flex min-h-screen bg-surface">
       <Sidebar width={sidebarWidth} onResize={setSidebarWidth} />
-      <TopBar sidebarWidth={sidebarWidth} minimal={minimalTopBar} />
-      <main 
-        className={cn("min-h-screen transition-[margin,padding] duration-150", minimalTopBar ? "pt-12" : "pt-[108px]")} 
-        style={{ marginLeft: sidebarWidth }}
-      >
-        <div className="p-5 animate-fade-in">{children}</div>
-      </main>
+      <div className="flex flex-col flex-1 overflow-y-auto h-screen" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <TopBar minimal={minimalTopBar} />
+        <main
+          className={cn(
+            "min-h-screen transition-[margin,padding] duration-150",
+            minimalTopBar ? "pt-12" : "pt-[108px]"
+          )}
+        >
+          <div className="animate-fade-in p-5">
+            <Breadcrumbs extraLabel={breadcrumbLabel} />
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

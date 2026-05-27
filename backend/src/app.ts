@@ -19,6 +19,7 @@ import conversationRoutes from './modules/conversations/conversation.routes';
 import plannerRoutes from './modules/planner/planner.routes';
 import { initReminderJob } from './modules/planner/planner.service';
 import dossierRoutes from './modules/dossiers/dossier.routes';
+import adminPortalRoutes from './modules/admin-portal/admin-portal.routes';
 
 const app = express();
 
@@ -83,6 +84,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/planner', plannerRoutes);
 app.use('/api/dossiers', dossierRoutes);
+app.use('/api/admin-portal', adminPortalRoutes);
 
 // 404 handler
 app.use((_req, res) => {
