@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ShieldAlert, Users, ShieldCheck, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { adminPortalApi } from '@/lib/api';
 
 interface Metrics {
   totalUsers: number;
@@ -15,13 +16,9 @@ export default function AdminConsolePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/admin-portal/metrics', { credentials: 'include' })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch metrics');
-        return res.json();
-      })
+    adminPortalApi.getMetrics()
       .then((data) => {
-        setMetrics(data?.data ?? null);
+        setMetrics(data);
         setLoading(false);
       })
       .catch(() => setLoading(false));

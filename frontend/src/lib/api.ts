@@ -374,6 +374,11 @@ export const adminPortalApi = {
     return extractData(res);
   },
 
+  getMetrics: async (): Promise<{ totalUsers: number; activeUsers: number; deletedAccounts: number }> => {
+    const res = await api.get<ApiResponse<{ totalUsers: number; activeUsers: number; deletedAccounts: number }>>('/admin-portal/metrics');
+    return extractData(res);
+  },
+
   updateUser: async (id: string, data: { role?: 'user' | 'admin'; isVerified?: boolean }): Promise<{ user: User }> => {
     const res = await api.put<ApiResponse<{ user: User }>>(`/admin-portal/users/${id}`, data);
     return extractData(res);

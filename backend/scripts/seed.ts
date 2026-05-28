@@ -28,15 +28,7 @@ const seed = async () => {
     isVerified: true,
   });
 
-  const adminUser = await UserModel.create({
-    name: 'Admin User',
-    email: 'admin@example.com',
-    passwordHash: await bcrypt.hash('Admin1234!', 12),
-    role: 'admin',
-    isVerified: true,
-  });
-
-  logger.info(`Created users: ${demoUser.email}, ${adminUser.email}`);
+  logger.info(`Created user: ${demoUser.email}`);
 
   // Create demo documents (without actual files — for UI demo)
   const demoDoc = await DocumentModel.create({
@@ -165,10 +157,6 @@ Bank: BNP Paribas — IBAN: FR76 1234 5678 9012 3456 7890 123`,
   logger.info('Demo credentials:');
   logger.info('  Email:    demo@example.com');
   logger.info('  Password: Demo1234!');
-  logger.info('');
-  logger.info('Admin credentials:');
-  logger.info('  Email:    admin@example.com');
-  logger.info('  Password: Admin1234!');
 
   await mongoose.disconnect();
   process.exit(0);

@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 import { UserModel } from '../users/user.model';
 import { logAction } from '../audit/audit.service';
 import { asyncHandler, successResponse, paginationMeta } from '../../utils/helpers';
@@ -58,7 +59,7 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response, _
   if (!name || !email || !role) {
     throw new ValidationError('Name, email and role are required');
   }
-  const passwordHash = password ? await someHashFunction(password) : 'placeholder'; // TODO: replace with real hash
+  const passwordHash = password ? await bcrypt.hash(password, 12) : 'placeholder'; // TODO: replace with real hash
   const newUser = new UserModel({
     name,
     email,

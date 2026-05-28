@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { ShieldAlert, LogOut, Users, ShieldCheck, Trash2, LayoutDashboard, UserCheck } from 'lucide-react';
 import { TopBar } from '@/components/layout/TopBar';
 import { cn } from '@/lib/utils';
+import { adminPortalApi } from '@/lib/api';
 
 export default function AdminConsoleLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading, logout } = useAuth();
@@ -18,13 +19,9 @@ export default function AdminConsoleLayout({ children }: { children: React.React
   // Fetch admin metrics
   useEffect(() => {
     if (user?.role === 'admin') {
-      fetch('/api/admin-portal/metrics', { credentials: 'include' })
-        .then((res) => {
-          if (!res.ok) throw new Error('Failed to fetch metrics');
-          return res.json();
-        })
+      adminPortalApi.getMetrics()
         .then((data) => {
-          setMetrics(data?.data);
+          setMetrics(data);
           setLoadingMetrics(false);
         })
         .catch(() => {
