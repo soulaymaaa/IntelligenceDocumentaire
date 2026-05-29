@@ -369,8 +369,13 @@ export const plannerApi = {
 // --- Admin Portal ---
 
 export const adminPortalApi = {
-  getUsers: async (params?: { page?: number; limit?: number; search?: string }): Promise<{ users: User[]; meta: PaginationMeta }> => {
+  getUsers: async (params?: { page?: number; limit?: number; search?: string; role?: string }): Promise<{ users: User[]; meta: PaginationMeta }> => {
     const res = await api.get<ApiResponse<{ users: User[]; meta: PaginationMeta }>>('/admin-portal/users', { params });
+    return extractData(res);
+  },
+
+  createUser: async (data: { name: string; email: string; role: 'user' | 'admin'; password?: string }): Promise<{ user: User }> => {
+    const res = await api.post<ApiResponse<{ user: User }>>('/admin-portal/users', data);
     return extractData(res);
   },
 

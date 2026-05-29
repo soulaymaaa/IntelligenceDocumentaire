@@ -14,7 +14,7 @@ import { useLanguage } from '@/providers/LanguageProvider';
 import { LogoMark } from '@/components/branding/LogoMark';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const { copy } = useLanguage();
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -28,15 +28,27 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const loggedUser = await login(email, password);
-      // Redirect based on role
+      // Redirect based on role (prevent admin from using public login)
       if (loggedUser?.role === 'admin') {
-        router.push('/portal');
+        setError("Accès refusé : les administrateurs doivent se connecter sur l'espace d'administration.");
+        await logout();
       } else {
         router.push('/dashboard');
       }
     } catch (err: any) {
+      if (typeof window !== 'undefined' && !window.navigator.onLine) {
+        setError("Vous êtes hors ligne. Veuillez vérifier votre connexion Internet.");
+        return;
+      }
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        setError("Impossible de se connecter au serveur backend. Veuillez vérifier que le serveur est démarré.");
+        return;
+      }
+
       const msg = getErrorMessage(err);
-      if (msg.toLowerCase().includes('verify your email')) {
+      if (msg.toLowerCase().includes('invalid email or password')) {
+        setError("Identifiants incorrects. Veuillez vérifier votre e-mail et votre mot de passe.");
+      } else if (msg.toLowerCase().includes('verify your email')) {
         setError(
           <span>
             {msg}.{' '}

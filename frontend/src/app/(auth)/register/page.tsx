@@ -21,6 +21,11 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const hasMinLength = password.length >= 8;
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasSpecialOrDigit = /[\d\W]/.test(password);
+  const strengthScore = [hasMinLength, hasLetter, hasSpecialOrDigit].filter(Boolean).length;
+
   const isPasswordSecure = (pass: string) => {
     return pass.length >= 8 && /[a-zA-Z]/.test(pass) && /[\d\W]/.test(pass);
   };
@@ -133,12 +138,62 @@ export default function RegisterPage() {
                 icon={<Lock className="w-5 h-5" />}
                 allowPasswordToggle
                 required
-                minLength={8}
                 autoComplete="new-password"
               />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 font-medium leading-relaxed">
-                {copy.auth.passwordHelp}
-              </p>
+              
+              {password.length > 0 && (
+                <div className="mt-3 space-y-2 animate-fade-in bg-slate-50 dark:bg-slate-900/30 p-3 rounded-xl border border-surface-200/50">
+                  {/* Strength Bar */}
+                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                    <span className="text-slate-500 dark:text-slate-400">Sécurité du mot de passe :</span>
+                    <span className={
+                      strengthScore === 3 ? 'text-emerald-500 dark:text-emerald-400 font-extrabold' :
+                      strengthScore === 2 ? 'text-amber-500 dark:text-amber-400 font-extrabold' : 'text-red-500 dark:text-red-400 font-extrabold'
+                    }>
+                      {strengthScore === 3 ? 'Fort' :
+                       strengthScore === 2 ? 'Moyen' : 'Faible'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-300 ${
+                      strengthScore >= 1 ? (strengthScore === 3 ? 'bg-emerald-500' : strengthScore === 2 ? 'bg-amber-500' : 'bg-red-500') : 'bg-transparent'
+                    }`} />
+                    <div className={`h-full rounded-full transition-all duration-300 ${
+                      strengthScore >= 2 ? (strengthScore === 3 ? 'bg-emerald-500' : 'bg-amber-500') : 'bg-transparent'
+                    }`} />
+                    <div className={`h-full rounded-full transition-all duration-300 ${
+                      strengthScore === 3 ? 'bg-emerald-500' : 'bg-transparent'
+                    }`} />
+                  </div>
+
+                  {/* Checklist */}
+                  <div className="space-y-1.5 mt-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${hasMinLength ? 'bg-emerald-500 scale-125' : 'bg-slate-300 dark:bg-slate-650'}`} />
+                      <span className={hasMinLength ? 'text-emerald-600 dark:text-emerald-400 font-bold transition-colors' : 'text-slate-500 transition-colors'}>
+                        Au moins 8 caractères
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${hasLetter ? 'bg-emerald-500 scale-125' : 'bg-slate-300 dark:bg-slate-650'}`} />
+                      <span className={hasLetter ? 'text-emerald-600 dark:text-emerald-400 font-bold transition-colors' : 'text-slate-500 transition-colors'}>
+                        Au moins une lettre (a-z, A-Z)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${hasSpecialOrDigit ? 'bg-emerald-500 scale-125' : 'bg-slate-300 dark:bg-slate-650'}`} />
+                      <span className={hasSpecialOrDigit ? 'text-emerald-600 dark:text-emerald-400 font-bold transition-colors' : 'text-slate-500 transition-colors'}>
+                        Au moins un chiffre ou caractère spécial
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {password.length === 0 && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 font-medium leading-relaxed">
+                  {copy.auth.passwordHelp}
+                </p>
+              )}
             </div>
 
             {error && (

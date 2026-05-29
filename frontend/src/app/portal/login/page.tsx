@@ -37,7 +37,21 @@ export default function AdminLoginPage() {
         await logout();
       }
     } catch (err: any) {
-      setError(getErrorMessage(err));
+      if (typeof window !== 'undefined' && !window.navigator.onLine) {
+        setError("Vous êtes hors ligne. Veuillez vérifier votre connexion Internet.");
+        return;
+      }
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        setError("Impossible de se connecter au serveur backend. Veuillez vérifier que le serveur est démarré.");
+        return;
+      }
+
+      const msg = getErrorMessage(err);
+      if (msg.toLowerCase().includes('invalid email or password')) {
+        setError("Identifiants incorrects. Veuillez vérifier votre e-mail et votre mot de passe.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setIsLoading(false);
     }

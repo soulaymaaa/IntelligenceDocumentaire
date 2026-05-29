@@ -6,6 +6,7 @@ const router = Router();
 
 // All routes require authentication and admin checks inside the controller
 router.get('/users', authenticate, adminPortalController.getUsers);
+router.post('/users', authenticate, adminPortalController.createUser);
 router.get('/metrics', authenticate, adminPortalController.getMetrics);
 router.put('/users/:id', authenticate, adminPortalController.updateUser);
 router.delete('/users/:id', authenticate, adminPortalController.deleteUser);
