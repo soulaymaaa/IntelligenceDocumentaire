@@ -2240,16 +2240,12 @@ const summaryData = useMemo<SummaryPayload>(
               <div className="mt-4">
                 {isSpreadsheet ? (
                   <SpreadsheetPreview doc={doc} />
-                ) : isImage ? (
-                  imagePdfPreviewUrl ? (
-                    <PdfPreview url={imagePdfPreviewUrl} originalName={doc.originalName} />
-                  ) : previewUrl ? (
-                    <img
-                      src={previewUrl}
-                      alt={doc.originalName}
-                      className="max-h-[680px] max-w-full rounded-2xl object-contain mx-auto"
-                    />
-                  ) : null
+                ) : isImage && previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt={doc.originalName}
+                    className="max-h-[680px] max-w-full rounded-2xl object-contain mx-auto"
+                  />
                 ) : isDocx && previewUrl ? (
                   <DocxPreview url={previewUrl} />
                 ) : doc.mimeType === 'application/pdf' && previewUrl ? (
