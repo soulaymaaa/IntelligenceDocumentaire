@@ -4,9 +4,9 @@
   "description": "Document Intelligence Platform - Backend API",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
-    "build": "tsc",
-    "start": "node dist/app.js",
+    "dev": "node api.js && ts-node-dev --respawn --transpile-only src/app.ts",
+    "build": "node api.js && tsc",
+    "start": "node api.js && node dist/app.js",
     "test": "jest --forceExit --detectOpenHandles",
     "test:watch": "jest --watch",
     "seed": "ts-node scripts/seed.ts",
