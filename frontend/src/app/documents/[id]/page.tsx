@@ -1942,6 +1942,7 @@ const summaryData = useMemo<SummaryPayload>(
   }, [activeConversation]);
 
   const previewUrl = getDocumentPreviewUrl(doc?.filename);
+  const imagePdfPreviewUrl = doc?.ocrPdfPath ? getDocumentPreviewUrl(doc.ocrPdfPath) : null;
   const originalFileUrl =
     doc?.filename
       ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/uploads/${doc.filename}`
@@ -2239,8 +2240,16 @@ const summaryData = useMemo<SummaryPayload>(
               <div className="mt-4">
                 {isSpreadsheet ? (
                   <SpreadsheetPreview doc={doc} />
-                ) : isImage && previewUrl ? (
-                  <ImagePreview url={previewUrl} originalName={doc.originalName} />
+                ) : isImage ? (
+                  imagePdfPreviewUrl ? (
+                    <PdfPreview url={imagePdfPreviewUrl} originalName={doc.originalName} />
+                  ) : previewUrl ? (
+                    <img
+                      src={previewUrl}
+                      alt={doc.originalName}
+                      className="max-h-[680px] max-w-full rounded-2xl object-contain mx-auto"
+                    />
+                  ) : null
                 ) : isDocx && previewUrl ? (
                   <DocxPreview url={previewUrl} />
                 ) : doc.mimeType === 'application/pdf' && previewUrl ? (
