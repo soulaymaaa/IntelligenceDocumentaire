@@ -38,12 +38,18 @@ const getNoIndexAnswer = (language: ResponseLanguage) =>
     ? '**Document non indexe**\n\nAucun contenu indexe trouve. Veuillez :\n1. Ouvrir la page du document\n2. Cliquer sur **OCR** pour extraire le texte\n3. Cliquer sur **Reindexer** pour generer les embeddings\n\nEnsuite, reposez votre question.'
     : '**Document not indexed**\n\nNo indexed content was found. Please:\n1. Open the document page\n2. Click **OCR** to extract the text\n3. Click **Reindex** to generate embeddings\n\nThen ask your question again.';
 
+const getLowConfidenceAnswer = (language: ResponseLanguage) =>
+  language === 'fr'
+    ? "**Reponse impossible avec certitude**\n\nJe n'ai pas trouve un passage assez fiable dans le document pour repondre correctement. Le scan ou l'OCR semble insuffisant.\n\nEssayez de relancer l'OCR/reindexation ou d'uploader une image plus nette du document."
+    : "**Cannot answer confidently**\n\nI could not find a reliable enough passage in the document to answer correctly. The scan or OCR quality appears insufficient.\n\nTry running OCR/reindexing again or uploading a clearer image of the document.";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 
-const RELEVANCE_THRESHOLD = 0.08;
-const HARD_MIN_SCORE = 0.04;
+const RELEVANCE_THRESHOLD = 0.18;
+const HARD_MIN_SCORE = 0.12;
+const MIN_CONFIDENT_SCORE = 0.16;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Intent detection
@@ -370,6 +376,17 @@ export const askQuestion = async (
   }
 
   // ── 3. Build clean sources ──────────────────────────────────────────────
+  if (bestScore < MIN_CONFIDENT_SCORE) {
+    return {
+      answer: getLowConfidenceAnswer(responseLanguage),
+      sources: [],
+      hasAnswer: false,
+      relevanceScore: Math.round(bestScore * 100),
+      confidence: 'low',
+      highlights: [],
+    };
+  }
+
   const sources: RagSource[] = results.map(({ chunk, score }) => ({
     chunkId: chunk._id.toString(),
     documentId: chunk.documentId?._id?.toString() ?? chunk.documentId?.toString(),

@@ -210,6 +210,8 @@ export default function DossierPage() {
         </Button>
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="space-y-8">
           {/* Document grid */}
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

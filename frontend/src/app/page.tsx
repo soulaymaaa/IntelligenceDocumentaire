@@ -89,8 +89,8 @@ export default function HomePage() {
           </div>
         </header>
 
-        <section className="relative z-10 grid gap-12 pt-14 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:pt-16">
-          <div className="max-w-[720px] pt-2">
+        <section className="relative z-10 grid gap-12 pt-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:pt-8">
+          <div className="max-w-[720px]">
             <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/15 bg-white/80 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-700 shadow-[0_10px_24px_-22px_rgba(8,145,178,0.45)] dark:border-cyan-400/15 dark:bg-slate-950/70 dark:text-cyan-300 dark:shadow-[0_10px_24px_-22px_rgba(0,0,0,0.5)]">
               <ShieldCheck className="h-4 w-4" />
               {copy.home.modernPlatform}
@@ -176,7 +176,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="relative flex min-h-[620px] items-center justify-center overflow-visible pr-0 lg:pr-4 xl:pr-10">
+          <div className="relative flex min-h-[520px] items-start justify-center overflow-visible pr-0 pt-1 lg:pr-4 xl:pr-10">
 
 
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_68%_72%,rgba(6,182,212,0.08),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(34,197,94,0.05),transparent_18%)] dark:bg-[radial-gradient(circle_at_68%_72%,rgba(6,182,212,0.16),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(34,197,94,0.08),transparent_18%)]" />
@@ -219,7 +219,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="relative z-10 -translate-y-6 xl:translate-x-2 xl:-translate-y-3">
+            <div className="relative z-10 -translate-y-20 xl:translate-x-2 xl:-translate-y-18">
               <div className="relative h-[590px] w-[340px] rounded-[48px] border-[8px] border-white bg-[#9ba7ba] p-[8px] shadow-[0_34px_80px_-42px_rgba(15,23,42,0.38)] dark:border-slate-300/20 dark:bg-[#4a5a6d] dark:shadow-[0_34px_80px_-42px_rgba(0,0,0,0.55)]">
                 <div className="relative h-full w-full overflow-hidden rounded-[40px] bg-[#8794a8] dark:bg-[#5c6d80]">
                   <img

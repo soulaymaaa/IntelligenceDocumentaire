@@ -21,18 +21,20 @@ const normalizeKey = (value: string) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[\s-]+/g, '_');
 
+const toPaddedDateString = (year: number, month: number, day: number) =>
+  `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
 const toDateString = (value: unknown): string | null => {
   if (!value) return null;
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    return toPaddedDateString(value.getFullYear(), value.getMonth() + 1, value.getDate());
   }
 
   if (typeof value === 'number') {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
-    const date = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d));
-    return date.toISOString().slice(0, 10);
+    return toPaddedDateString(parsed.y, parsed.m, parsed.d);
   }
 
   const raw = value.toString().trim();
@@ -51,7 +53,9 @@ const toDateString = (value: unknown): string | null => {
   }
 
   const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : toPaddedDateString(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate());
 };
 
 const normalizePriority = (value: unknown): 'low' | 'medium' | 'high' => {

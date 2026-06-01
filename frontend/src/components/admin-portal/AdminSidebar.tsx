@@ -14,16 +14,21 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import { LogoMark } from '@/components/branding/LogoMark';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const MIN_WIDTH = 72;
 const FULL_WIDTH = 256;
 
-export function AdminSidebar() {
+export function AdminSidebar({ onWidthChange }: { onWidthChange?: (width: number) => void }) {
   const pathname = usePathname();
   const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const isCompact = collapsed;
+  const width = isCompact ? MIN_WIDTH : FULL_WIDTH;
+
+  useEffect(() => {
+    onWidthChange?.(width);
+  }, [onWidthChange, width]);
 
   const navItems = [
     {
@@ -52,7 +57,7 @@ export function AdminSidebar() {
   return (
     <aside
       className="fixed left-0 top-0 z-30 h-screen flex flex-col border-r border-surface-200 bg-card transition-all duration-300"
-      style={{ width: isCompact ? MIN_WIDTH : FULL_WIDTH }}
+      style={{ width }}
     >
       {/* Logo Header */}
       <div className={cn('border-b border-surface-200 relative', isCompact ? 'px-2 py-4' : 'px-4 py-4')}>

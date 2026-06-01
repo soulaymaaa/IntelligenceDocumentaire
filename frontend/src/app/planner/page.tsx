@@ -118,6 +118,17 @@ const taskTouchesDay = (task: Task, day: Date) => {
   return getTaskStart(task) <= dayKey && getTaskEnd(task) >= dayKey;
 };
 
+const getTaskDayMarker = (task: Task, day: Date) => {
+  const dayKey = toDateInput(day);
+  const startDate = getTaskStart(task);
+  const endDate = getTaskEnd(task);
+
+  if (startDate === endDate && dayKey === startDate) return '';
+  if (dayKey === startDate) return 'Debut';
+  if (dayKey === endDate) return 'Fin';
+  return null;
+};
+
 export default function PlannerPage() {
   const { language, copy } = useLanguage();
   const locale = language === 'fr' ? fr : enUS;
@@ -387,8 +398,11 @@ export default function PlannerPage() {
 
               <div className="grid grid-cols-7">
                 {calendarDays.map((day, index) => {
-                  const dayTasks = tasks.filter((task) => taskTouchesDay(task, day));
-                  const openTasks = dayTasks.filter((task) => !task.completed);
+                  const dayTasks = tasks
+                    .map((task) => ({ task, marker: getTaskDayMarker(task, day) }))
+                    .filter((item): item is { task: Task; marker: string } => item.marker !== null);
+                  const activeTasks = tasks.filter((task) => taskTouchesDay(task, day));
+                  const openTasks = activeTasks.filter((task) => !task.completed);
                   const isToday = isSameDay(day, new Date());
                   const isSelected = isSameDay(day, selectedDate);
                   const isCurrentMonth = isSameMonth(day, currentMonth);
@@ -413,9 +427,10 @@ export default function PlannerPage() {
                         {format(day, 'd')}
                       </span>
                       <div className="mt-2 flex flex-col gap-1 overflow-hidden">
-                        {dayTasks.slice(0, 3).map((task) => (
+                        {dayTasks.slice(0, 3).map(({ task, marker }) => (
                           <span
                             key={task._id}
+                            title={`${marker ? `${marker}: ` : ''}${task.text}`}
                             className={cn(
                               'truncate rounded px-1.5 py-0.5 text-[10px] font-bold',
                               task.completed
@@ -423,7 +438,7 @@ export default function PlannerPage() {
                                 : priorityClasses[task.priority || 'medium']
                             )}
                           >
-                            {task.text}
+                            {marker ? `${marker}: ${task.text}` : task.text}
                           </span>
                         ))}
                         {dayTasks.length > 3 && (

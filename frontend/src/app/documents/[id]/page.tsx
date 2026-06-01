@@ -547,7 +547,7 @@ const trimScanMargins = (canvas: HTMLCanvasElement) => {
   return trimmedCanvas;
 };
 
-const sharpenScanImage = (imageData: ImageData, width: number, height: number, amount = 0.34) => {
+const sharpenScanImage = (imageData: ImageData, width: number, height: number, amount = 0.5) => {
   if (width < 3 || height < 3) return;
 
   const data = imageData.data;
@@ -557,7 +557,7 @@ const sharpenScanImage = (imageData: ImageData, width: number, height: number, a
     for (let x = 1; x < width - 1; x += 1) {
       const index = (y * width + x) * 4;
       const centerLuma = 0.2126 * original[index] + 0.7152 * original[index + 1] + 0.0722 * original[index + 2];
-      const localAmount = centerLuma > 226 ? amount * 0.18 : centerLuma < 80 ? amount * 0.72 : amount;
+      const localAmount = centerLuma > 226 ? amount * 0.16 : centerLuma < 92 ? amount * 0.9 : amount;
 
       for (let channel = 0; channel < 3; channel += 1) {
         const center = original[index + channel];
@@ -618,7 +618,7 @@ const createScannedImagePreview = async (url: string): Promise<ScannedImagePrevi
       }
     : { x: 0, y: 0, width: sourceWidth, height: sourceHeight };
 
-  const outputScale = Math.min(1, 1800 / Math.max(sourceBounds.width, sourceBounds.height));
+  const outputScale = Math.min(1, 2600 / Math.max(sourceBounds.width, sourceBounds.height));
   const outputWidth = Math.max(1, Math.round(sourceBounds.width * outputScale));
   const outputHeight = Math.max(1, Math.round(sourceBounds.height * outputScale));
   const outputCanvas = document.createElement('canvas');
@@ -666,9 +666,9 @@ const createScannedImagePreview = async (url: string): Promise<ScannedImagePrevi
     }
   }
 
-  const blackPoint = Math.max(0, getPercentile(lumaSamples, 0.03) - 4);
-  const whitePoint = Math.min(255, getPercentile(lumaSamples, 0.92) + 18);
-  const span = Math.max(64, whitePoint - blackPoint);
+  const blackPoint = Math.max(0, getPercentile(lumaSamples, 0.06) - 10);
+  const whitePoint = Math.min(255, getPercentile(lumaSamples, 0.88) + 10);
+  const span = Math.max(46, whitePoint - blackPoint);
 
   for (let index = 0; index < pixels.length; index += 4) {
     const r = pixels[index];
@@ -676,18 +676,18 @@ const createScannedImagePreview = async (url: string): Promise<ScannedImagePrevi
     const b = pixels[index + 2];
     const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     const normalized = Math.max(0, Math.min(1, (luma - blackPoint) / span));
-    const lightened = Math.pow(normalized, 0.72);
-    const contrasted = clampChannel((lightened * 255 - 128) * 1.08 + 128);
-    const paperLift = contrasted > 210 ? 34 : contrasted > 178 ? 18 : contrasted > 145 ? 8 : 0;
-    const textDrop = contrasted < 78 ? -10 : 0;
+    const lightened = Math.pow(normalized, 0.82);
+    const contrasted = clampChannel((lightened * 255 - 128) * 1.28 + 128);
+    const paperLift = contrasted > 218 ? 28 : contrasted > 188 ? 14 : contrasted > 155 ? 5 : 0;
+    const textDrop = contrasted < 92 ? -24 : contrasted < 122 ? -10 : 0;
     const scanTone = clampChannel(contrasted + paperLift + textDrop);
 
-    pixels[index] = clampChannel(r * 0.1 + scanTone * 0.9);
-    pixels[index + 1] = clampChannel(g * 0.1 + scanTone * 0.9);
-    pixels[index + 2] = clampChannel(b * 0.1 + scanTone * 0.9);
+    pixels[index] = clampChannel(r * 0.04 + scanTone * 0.96);
+    pixels[index + 1] = clampChannel(g * 0.04 + scanTone * 0.96);
+    pixels[index + 2] = clampChannel(b * 0.04 + scanTone * 0.96);
   }
 
-  sharpenScanImage(imageData, finalWidth, finalHeight);
+  sharpenScanImage(imageData, finalWidth, finalHeight, 0.56);
   finalContext.putImageData(imageData, 0, 0);
   const imageUrl = await createCanvasImageUrl(trimmedCanvas);
 
@@ -734,7 +734,7 @@ const ImagePreview = ({ url, originalName }: { url: string; originalName: string
       {status === 'loading' && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-100/95 dark:bg-slate-950/95">
           <Spinner size="lg" />
-          <p className="text-sm font-medium text-slate-500">Preparation du scan...</p>
+          <p className="text-sm font-medium text-slate-500">Chargement de l'aperçu...</p>
         </div>
       )}
       {status === 'error' && (

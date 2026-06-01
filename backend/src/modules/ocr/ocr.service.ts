@@ -635,16 +635,32 @@ const renderPdfPagesAndOcr = async (buffer: Buffer): Promise<string> => {
 
 const extractFromImage = async (filePath: string): Promise<string> => {
   logger.info('Preprocessing image with sharp before OCR');
-  let processed: Buffer;
 
   try {
-    processed = await preprocessImageFile(filePath);
+    const candidates = await preprocessImageFileVariants(filePath);
+    const results = await Promise.all(
+      candidates.map(async (candidate) => {
+        const result = await ocrBufferWithConfidence(candidate.buffer);
+        logger.info(
+          `OCR candidate "${candidate.name}": ${result.wordCount} words, confidence ${Math.round(result.confidence)}`
+        );
+        return { ...result, name: candidate.name };
+      })
+    );
+
+    const best = results
+      .filter((result) => result.text.trim().length > 0)
+      .sort((a, b) => b.score - a.score)[0];
+
+    if (best) {
+      logger.info(`Selected OCR candidate "${best.name}" (score ${Math.round(best.score)})`);
+      return best.text;
+    }
   } catch (err: any) {
     logger.warn(`sharp preprocessing failed (${err.message}), using raw file`);
-    processed = fs.readFileSync(filePath);
   }
 
-  return ocrBuffer(processed);
+  return ocrBuffer(fs.readFileSync(filePath));
 };
 
 // ── Image preprocessing ────────────────────────────────────────────────────────
@@ -656,17 +672,54 @@ const extractFromImage = async (filePath: string): Promise<string> => {
  * 3. Sharpen text edges
  * 4. Normalise contrast
  */
+const buildImagePipeline = (input: string | Buffer) =>
+  sharp(input)
+    .resize({ width: 3400, fit: 'inside', withoutEnlargement: false })
+    .greyscale()
+    .normalise();
+
+const preprocessImageFileVariants = async (filePath: string): Promise<Array<{ name: string; buffer: Buffer }>> => {
+  const balanced = await buildImagePipeline(filePath)
+    .linear(1.28, -18)
+    .modulate({ brightness: 1.08 })
+    .sharpen({ sigma: 1.05, m1: 1.0, m2: 8 })
+    .png()
+    .toBuffer();
+
+  const highContrast = await buildImagePipeline(filePath)
+    .linear(1.55, -36)
+    .modulate({ brightness: 1.04 })
+    .sharpen({ sigma: 1.25, m1: 1.4, m2: 12 })
+    .png()
+    .toBuffer();
+
+  const binary = await buildImagePipeline(filePath)
+    .linear(1.35, -24)
+    .threshold(172)
+    .sharpen({ sigma: 0.9, m1: 0.8, m2: 6 })
+    .png()
+    .toBuffer();
+
+  return [
+    { name: 'balanced', buffer: balanced },
+    { name: 'high-contrast', buffer: highContrast },
+    { name: 'binary', buffer: binary },
+  ];
+};
+
 const preprocessImageFile = async (filePath: string): Promise<Buffer> => {
   const meta = await sharp(filePath).metadata();
   const width = meta.width ?? 0;
 
   return sharp(filePath)
     .resize(
-      width < 2000 ? { width: 2400, withoutEnlargement: false } : undefined
+      width < 2600 ? { width: 3200, withoutEnlargement: false } : undefined
     )
     .greyscale()
-    .sharpen({ sigma: 1.0, m1: 0.5, m2: 3.0 })
     .normalise()
+    .linear(1.55, -36)
+    .modulate({ brightness: 1.04 })
+    .sharpen({ sigma: 1.25, m1: 1.4, m2: 12 })
     .png()
     .toBuffer();
 };
@@ -675,10 +728,10 @@ const preprocessImageFile = async (filePath: string): Promise<Buffer> => {
  * Preprocess an in-memory PNG buffer (used for PDF pages rendered to canvas).
  */
 const preprocessImageBuffer = async (pngBuffer: Buffer): Promise<Buffer> => {
-  return sharp(pngBuffer)
-    .greyscale()
-    .sharpen({ sigma: 1.0, m1: 0.5, m2: 3.0 })
-    .normalise()
+  return buildImagePipeline(pngBuffer)
+    .linear(1.55, -36)
+    .modulate({ brightness: 1.04 })
+    .sharpen({ sigma: 1.25, m1: 1.4, m2: 12 })
     .png()
     .toBuffer();
 };
@@ -724,6 +777,37 @@ const ocrBuffer = async (input: Buffer | string): Promise<string> => {
   }
 
   return result.data.text?.trim() ?? '';
+};
+
+const ocrBufferWithConfidence = async (input: Buffer | string): Promise<{
+  text: string;
+  confidence: number;
+  wordCount: number;
+  score: number;
+}> => {
+  const result = await Tesseract.recognize(input, env.OCR_LANGUAGES, {
+    logger: (m) => {
+      if (m.status === 'recognizing text') {
+        const pct = Math.round(m.progress * 100);
+        if (pct % 25 === 0) logger.debug(`  Tesseract: ${pct}%`);
+      }
+    },
+  });
+
+  const text = result.data.text?.trim() ?? '';
+  const words = result.data.words ?? [];
+  const readableWords = words.filter((word: any) => String(word.text || '').trim().length > 0);
+  const averageConfidence = readableWords.length
+    ? readableWords.reduce((sum: number, word: any) => sum + (Number(word.confidence) || 0), 0) / readableWords.length
+    : result.data.confidence || 0;
+  const count = wordCount(text);
+
+  return {
+    text,
+    confidence: averageConfidence,
+    wordCount: count,
+    score: averageConfidence + Math.min(count, 250) * 0.4 + Math.min(text.length, 2000) * 0.01,
+  };
 };
 
 // ── Text cleaning ──────────────────────────────────────────────────────────────
