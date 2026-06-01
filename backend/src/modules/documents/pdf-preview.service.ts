@@ -42,77 +42,87 @@ export const createImagePdfPreview = async (
   pdfPath: string
 ): Promise<void> => {
   try {
-    // 1. Initial load to get metadata and orientation
-    const metadata = await sharp(imagePath).rotate().metadata();
-    const originalWidth = metadata.width || 1;
-    const originalHeight = metadata.height || 1;
+    // 1. Apply EXIF rotation and flatten transparency to white.
+    //    We materialise this step so all subsequent operations work in
+    //    a stable, orientation-correct coordinate space.
+    let workingBuf = await sharp(imagePath)
+      .rotate()
+      .flatten({ background: '#ffffff' })
+      .toBuffer();
+
+    const baseMeta = await sharp(workingBuf).metadata();
+    const originalWidth = baseMeta.width || 1;
+    const originalHeight = baseMeta.height || 1;
 
     logger.info(`Processing image for PDF preview: ${path.basename(imagePath)} (${originalWidth}x${originalHeight})`);
 
-    // 2. Detect deskew angle and potential crop
-    const analysis = await detectDocumentCrop(imagePath);
-    
-    let pipeline = sharp(imagePath).rotate();
+    // 2. Attempt document boundary detection and deskew.
+    //    detectDocumentCrop internally applies .rotate() so its returned
+    //    coordinates are already in the same orientation-corrected space.
+    try {
+      const analysis = await detectDocumentCrop(imagePath);
+      if (analysis) {
+        // Clamp crop to valid region
+        const left = Math.max(0, Math.min(originalWidth - 10, analysis.left));
+        const top = Math.max(0, Math.min(originalHeight - 10, analysis.top));
+        const width = Math.max(10, Math.min(originalWidth - left, analysis.width));
+        const height = Math.max(10, Math.min(originalHeight - top, analysis.height));
 
-    // 3. Deskew if an angle was detected
-    if (analysis?.angle) {
-      logger.info(`Applying deskew angle: ${analysis.angle.toFixed(2)}°`);
-      pipeline = pipeline.rotate(analysis.angle, { background: '#ffffff' });
+        // Only apply if the detected region is a meaningful portion of the image
+        if (width > originalWidth * 0.25 && height > originalHeight * 0.25) {
+          logger.info(`Extracting document area: ${width}x${height} at (${left}, ${top})`);
+          workingBuf = await sharp(workingBuf)
+            .extract({ left, top, width, height })
+            .toBuffer();
+
+          // Deskew after crop so the rotate fills edges with white on the
+          // already-cropped area rather than on the full image
+          if (analysis.angle && Math.abs(analysis.angle) > 1.5) {
+            logger.info(`Applying deskew: ${analysis.angle.toFixed(1)}°`);
+            workingBuf = await sharp(workingBuf)
+              .rotate(analysis.angle, { background: '#ffffff' })
+              .toBuffer();
+          }
+        }
+      }
+    } catch (detectErr) {
+      logger.warn(`Document detection skipped (${detectErr instanceof Error ? detectErr.message : String(detectErr)}), using full image`);
     }
 
-    // 4. Extract document area if possible
-    if (analysis) {
-      const finalMetadata = await pipeline.metadata();
-      const currentWidth = finalMetadata.width || originalWidth;
-      const currentHeight = finalMetadata.height || originalHeight;
-
-      const left = Math.max(0, Math.min(currentWidth - 10, analysis.left));
-      const top = Math.max(0, Math.min(currentHeight - 10, analysis.top));
-      const width = Math.max(10, Math.min(currentWidth - left, analysis.width));
-      const height = Math.max(10, Math.min(currentHeight - top, analysis.height));
-
-      logger.info(`Extracting document area: ${width}x${height} at ${left},${top}`);
-      pipeline = pipeline.extract({ left, top, width, height });
-    }
-
-    // 5. Magic Color Scan Effect (Professional Scan look)
-    // We use a robust pipeline: normalization + brightness/contrast + sharpening
-    const { data, info } = await pipeline
-      .resize({
-        width: MAX_IMAGE_SIDE_PX,
-        height: MAX_IMAGE_SIDE_PX,
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-      .flatten({ background: '#ffffff' })
-      .toColorspace('srgb')
-      .normalize() // Autolevel contrast
-      .modulate({ 
-        brightness: 1.08,
-      })
-      .linear(1.3, -18) // Heavy contrast to whiten background and darken text
-      .sharpen({ sigma: 1.2, m1: 2, m2: 20 })
-      .jpeg({ quality: 90, mozjpeg: true })
+    // 3. CamScanner-style enhancement:
+    //    greyscale → global normalise → adaptive CLAHE → gentle linear boost → sharpen
+    //    CLAHE handles uneven phone-camera lighting that a flat linear transform cannot.
+    const { data, info } = await sharp(workingBuf)
+      .resize({ width: MAX_IMAGE_SIDE_PX, height: MAX_IMAGE_SIDE_PX, fit: 'inside', withoutEnlargement: true })
+      .greyscale()
+      .normalise()
+      .clahe({ width: 64, height: 64, maxSlope: 3 })
+      .linear(1.2, -10)
+      .sharpen({ sigma: 0.8, m1: 1.0, m2: 8 })
+      .jpeg({ quality: 92, mozjpeg: true })
       .toBuffer({ resolveWithObject: true });
 
-    const width = info.width || 1;
-    const height = info.height || 1;
-    const pdf = createSinglePageImagePdf(data, width, height);
-
+    const pdf = createSinglePageImagePdf(data, info.width!, info.height!);
     await fs.promises.writeFile(pdfPath, pdf);
     logger.info(`Successfully generated scanned PDF preview: ${path.basename(pdfPath)}`);
   } catch (error) {
-    logger.error(`Critical failure in document scan generation: ${error instanceof Error ? error.message : String(error)}`);
-    
-    // Final fallback: just convert original image to PDF without processing
-    // to ensure the user at least sees something.
+    logger.error(`PDF preview generation failed: ${error instanceof Error ? error.message : String(error)}`);
+
+    // Fallback: minimal processing so the user always sees something
     try {
-      const fallback = await sharp(imagePath).rotate().resize(1200, 1200, { fit: 'inside' }).jpeg().toBuffer({ resolveWithObject: true });
-      const pdf = createSinglePageImagePdf(fallback.data, fallback.info.width!, fallback.info.height!);
+      const { data, info } = await sharp(imagePath)
+        .rotate()
+        .flatten({ background: '#ffffff' })
+        .resize(1600, 1600, { fit: 'inside' })
+        .greyscale()
+        .normalise()
+        .sharpen()
+        .jpeg({ quality: 85 })
+        .toBuffer({ resolveWithObject: true });
+      const pdf = createSinglePageImagePdf(data, info.width!, info.height!);
       await fs.promises.writeFile(pdfPath, pdf);
       logger.warn(`Generated fallback PDF preview for: ${path.basename(imagePath)}`);
-    } catch (fallbackError) {
-      logger.error('Total failure: even fallback PDF generation failed.');
+    } catch {
       throw error;
     }
   }

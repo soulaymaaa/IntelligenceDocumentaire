@@ -674,29 +674,32 @@ const extractFromImage = async (filePath: string): Promise<string> => {
  */
 const buildImagePipeline = (input: string | Buffer) =>
   sharp(input)
+    .rotate()                                           // honour EXIF orientation (phone photos)
     .resize({ width: 3400, fit: 'inside', withoutEnlargement: false })
     .greyscale()
     .normalise();
 
 const preprocessImageFileVariants = async (filePath: string): Promise<Array<{ name: string; buffer: Buffer }>> => {
+  // Adaptive CLAHE variant: handles uneven phone-camera lighting far better than
+  // a global linear transform.  Best all-round choice for real-world document photos.
   const balanced = await buildImagePipeline(filePath)
-    .linear(1.28, -18)
-    .modulate({ brightness: 1.08 })
-    .sharpen({ sigma: 1.05, m1: 1.0, m2: 8 })
+    .clahe({ width: 64, height: 64, maxSlope: 3 })
+    .linear(1.2, -10)
+    .sharpen({ sigma: 0.8, m1: 1.0, m2: 6 })
     .png()
     .toBuffer();
 
+  // High-contrast variant: for faint, faded or low-contrast text
   const highContrast = await buildImagePipeline(filePath)
-    .linear(1.55, -36)
-    .modulate({ brightness: 1.04 })
-    .sharpen({ sigma: 1.25, m1: 1.4, m2: 12 })
+    .linear(1.5, -30)
+    .sharpen({ sigma: 1.0, m1: 1.2, m2: 10 })
     .png()
     .toBuffer();
 
+  // Binary (adaptive threshold) variant: for clear B&W printed documents
   const binary = await buildImagePipeline(filePath)
-    .linear(1.35, -24)
-    .threshold(172)
-    .sharpen({ sigma: 0.9, m1: 0.8, m2: 6 })
+    .clahe({ width: 32, height: 32, maxSlope: 4 })
+    .threshold(180)
     .png()
     .toBuffer();
 
@@ -724,14 +727,11 @@ const preprocessImageFile = async (filePath: string): Promise<Buffer> => {
     .toBuffer();
 };
 
-/**
- * Preprocess an in-memory PNG buffer (used for PDF pages rendered to canvas).
- */
 const preprocessImageBuffer = async (pngBuffer: Buffer): Promise<Buffer> => {
   return buildImagePipeline(pngBuffer)
-    .linear(1.55, -36)
-    .modulate({ brightness: 1.04 })
-    .sharpen({ sigma: 1.25, m1: 1.4, m2: 12 })
+    .clahe({ width: 64, height: 64, maxSlope: 3 })
+    .linear(1.2, -10)
+    .sharpen({ sigma: 0.9, m1: 1.0, m2: 8 })
     .png()
     .toBuffer();
 };
