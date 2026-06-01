@@ -89,16 +89,16 @@ export const createImagePdfPreview = async (
       logger.warn(`Document detection skipped (${detectErr instanceof Error ? detectErr.message : String(detectErr)}), using full image`);
     }
 
-    // 3. CamScanner-style enhancement:
-    //    greyscale → global normalise → adaptive CLAHE → gentle linear boost → sharpen
-    //    CLAHE handles uneven phone-camera lighting that a flat linear transform cannot.
+    // 3. Colour-preserving enhancement: brighten, gentle contrast boost, sharpen.
+    //    We keep full colour so the PDF preview matches the original photo.
+    //    The aggressive grayscale+CLAHE pipeline is reserved for OCR only.
     const { data, info } = await sharp(workingBuf)
       .resize({ width: MAX_IMAGE_SIDE_PX, height: MAX_IMAGE_SIDE_PX, fit: 'inside', withoutEnlargement: true })
-      .greyscale()
+      .flatten({ background: '#ffffff' })
+      .toColorspace('srgb')
       .normalise()
-      .clahe({ width: 64, height: 64, maxSlope: 3 })
-      .linear(1.2, -10)
-      .sharpen({ sigma: 0.8, m1: 1.0, m2: 8 })
+      .modulate({ brightness: 1.05, saturation: 1.05 })
+      .sharpen({ sigma: 0.6, m1: 0.5, m2: 4 })
       .jpeg({ quality: 92, mozjpeg: true })
       .toBuffer({ resolveWithObject: true });
 
@@ -114,9 +114,7 @@ export const createImagePdfPreview = async (
         .rotate()
         .flatten({ background: '#ffffff' })
         .resize(1600, 1600, { fit: 'inside' })
-        .greyscale()
         .normalise()
-        .sharpen()
         .jpeg({ quality: 85 })
         .toBuffer({ resolveWithObject: true });
       const pdf = createSinglePageImagePdf(data, info.width!, info.height!);
